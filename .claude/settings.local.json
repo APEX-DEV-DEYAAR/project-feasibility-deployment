@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(curl:*)",
+      "Bash(PGPASSWORD=feasibility_pass \"/c/Program Files/PostgreSQL/16/bin/psql.exe\":*)",
+      "Bash(powershell:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(PGPASSWORD=feasibility_pass psql:*)",
+      "Bash(\"C:/Program:*)",
+      "Bash(PGPASSWORD=feasibility_pass \"C:/Program Files/PostgreSQL/16/bin/psql.exe\":*)",
+      "Bash(ls:*)",
+      "Bash(cmd:*)"
+    ]
+  }
+}

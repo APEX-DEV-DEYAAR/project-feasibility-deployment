@@ -1,0 +1,765 @@
+/* Executive Dashboard - Reorganized Layout with Proper Colors */
+
+/* Executive Header Section */
+.exec-header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #E8E1D5;
+}
+
+.project-title-block h1 {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 500;
+  color: #3D2914;
+  margin-bottom: 12px;
+}
+
+.project-meta-row {
+  display: flex;
+  gap: 8px;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge.draft {
+  background: #FFF8E1;
+  color: #E65100;
+}
+
+.status-badge.frozen {
+  background: #E3F2FD;
+  color: #0D47A1;
+}
+
+.version-badge {
+  background: #3D2914;
+  color: #F5ECD9;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.date-badge {
+  background: #F5ECD9;
+  color: #3D2914;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* Quick Stats */
+.project-quick-stats {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: #fff;
+  border: 1px solid #E8E1D5;
+  border-radius: 8px;
+  padding: 16px 24px;
+}
+
+.quick-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.qs-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: var(--font-display);
+  color: #3D2914;
+}
+
+.qs-label {
+  font-size: 10px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.quick-stat-divider {
+  width: 1px;
+  height: 32px;
+  background: #E8E1D5;
+}
+
+/* Section Labels */
+.section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #555;
+  margin-bottom: 12px;
+}
+
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #E8E1D5;
+}
+
+.section-header-row h2 {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: #3D2914;
+}
+
+.section-header-row span {
+  font-size: 12px;
+  color: #666;
+}
+
+/* Primary Metrics Section */
+.metrics-section {
+  margin-bottom: 32px;
+}
+
+.metrics-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.metrics-grid.four-cols {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.metric-tile {
+  background: #fff;
+  border: 1px solid #E8E1D5;
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  gap: 14px;
+  transition: box-shadow 0.2s;
+}
+
+.metric-tile:hover {
+  box-shadow: 0 4px 12px rgba(61, 41, 20, 0.08);
+}
+
+/* Primary tile - Dark brown background */
+.metric-tile.primary {
+  background: #3D2914;
+  border-color: #3D2914;
+}
+
+.metric-tile.primary .tile-icon {
+  background: rgba(255, 255, 255, 0.2);
+  color: #FFF;
+}
+
+.metric-tile.primary .tile-label {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.metric-tile.primary .tile-value {
+  color: #FFF;
+}
+
+.metric-tile.primary .tile-sublabel {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Profit tile - Light green background, dark green text */
+.metric-tile.profit {
+  border-color: #4CAF50;
+  background: #E8F5E9;
+}
+
+.metric-tile.profit .tile-icon {
+  background: #4CAF50;
+  color: #FFF;
+}
+
+.metric-tile.profit .tile-label {
+  color: #2E7D32;
+}
+
+.metric-tile.profit .tile-value {
+  color: #1B5E20;
+}
+
+.metric-tile.profit .tile-sublabel {
+  color: #388E3C;
+}
+
+/* Revenue tile - Light orange background */
+.metric-tile:has(.tile-icon.revenue) {
+  background: #FFF3E0;
+  border-color: #FF9800;
+}
+
+.tile-icon.revenue {
+  background: #FF9800;
+  color: #FFF;
+}
+
+/* Cost tile - Light red background */
+.metric-tile:has(.tile-icon.cost) {
+  background: #FFEBEE;
+  border-color: #EF5350;
+}
+
+.tile-icon.cost {
+  background: #EF5350;
+  color: #FFF;
+}
+
+.tile-icon {
+  width: 40px;
+  height: 40px;
+  background: rgba(61, 41, 20, 0.08);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: #3D2914;
+  flex-shrink: 0;
+}
+
+.tile-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tile-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #666;
+}
+
+.tile-value {
+  font-size: 22px;
+  font-weight: 600;
+  font-family: var(--font-display);
+  color: #3D2914;
+}
+
+.tile-sublabel {
+  font-size: 11px;
+  color: #888;
+}
+
+/* ============================================
+   VISUAL DASHBOARD - Charts
+   ============================================ */
+
+.dashboard-section {
+  margin-bottom: 32px;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-rows: 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.dashboard-card {
+  background: #fff;
+  border: 1px solid #E8E1D5;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-grid.no-jv {
+  grid-template-columns: 1fr 1fr;
+}
+
+.card-header {
+  padding: 14px 16px;
+  background: #3D2914;
+  border-bottom: 1px solid #5C4033;
+}
+
+.card-header h3 {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  color: #FFF;
+  margin-bottom: 2px;
+}
+
+.card-header span {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.card-body {
+  padding: 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 200px;
+}
+
+/* Chart container layouts */
+.card-body .waterfall {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 40px;
+  padding: 20px 0;
+}
+
+.card-body .jv-chart-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+/* Auto-placing legend based on data count */
+.card-body .jv-legend {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px 16px;
+}
+
+.card-body .legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.card-body .legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.card-body .legend-name {
+  flex: 1;
+  font-size: 12px;
+  color: #3D2914;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-body .legend-pct {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.card-body .legend-amt {
+  font-size: 10px;
+  color: #666;
+  margin-left: 4px;
+}
+
+/* Cost breakdown in card */
+.card-body .breakdown-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.card-body .bd-name {
+  width: 100px;
+  font-size: 11px;
+  color: #3D2914;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-body .bd-track {
+  flex: 1;
+  height: 8px;
+  background: #F5ECD9;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.card-body .bd-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #D26935, #E07B4A);
+  transition: width 0.6s ease;
+}
+
+.card-body .bd-val {
+  width: 50px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+  color: #3D2914;
+}
+
+.card-body .bd-pct {
+  width: 36px;
+  text-align: right;
+  font-size: 10px;
+  color: #666;
+}
+
+/* Tables Section */
+.tables-section {
+  margin-bottom: 32px;
+}
+
+.data-table-block {
+  margin-bottom: 24px;
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.table-header h4 {
+  font-size: 12px;
+  font-weight: 700;
+  color: #3D2914;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.table-header span {
+  font-size: 11px;
+  color: #666;
+}
+
+/* ============================================
+   JOINT VENTURE SECTION
+   ============================================ */
+
+.jv-section {
+  margin-bottom: 32px;
+}
+
+.jv-summary-bar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: #fff;
+  border: 1px solid #E8E1D5;
+  border-radius: 8px;
+  padding: 16px 24px;
+  margin-bottom: 16px;
+}
+
+.jv-sum-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.jv-sum-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #666;
+}
+
+.jv-sum-value {
+  font-size: 18px;
+  font-weight: 600;
+  font-family: var(--font-display);
+  color: #3D2914;
+}
+
+.jv-sum-value.profit {
+  color: #2E7D52;
+}
+
+.jv-sum-value.valid {
+  color: #2E7D52;
+}
+
+.jv-sum-value.invalid {
+  color: #D32F2F;
+}
+
+.jv-sum-divider {
+  width: 1px;
+  height: 32px;
+  background: #E8E1D5;
+}
+
+/* JV Table Section */
+.jv-visual-block {
+  background: #fff;
+  border: 1px solid #E8E1D5;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 16px;
+}
+
+.jv-visual-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #3D2914;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 16px;
+}
+
+.jv-stacked-bar {
+  display: flex;
+  height: 36px;
+  background: #F5ECD9;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.jv-bar-segment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  transition: all 0.3s ease;
+  min-width: 40px;
+}
+
+/* Ensure white text on colored bar segments */
+.jv-bar-segment span {
+  font-size: 11px;
+  font-weight: 700;
+  color: #FFF;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  padding: 0 4px;
+}
+
+.jv-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.jv-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.jv-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.jv-legend-name {
+  font-size: 12px;
+  color: #3D2914;
+}
+
+.jv-legend-pct {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+}
+
+/* Archive Section */
+.archive-section {
+  margin-bottom: 32px;
+}
+
+/* Partner bar in JV table */
+.partner-bar-bg {
+  width: 100%;
+  height: 8px;
+  background: #F5ECD9;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.partner-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .exec-header-section {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .project-quick-stats {
+    width: 100%;
+    justify-content: space-around;
+  }
+  
+  .metrics-grid.four-cols {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .metric-tile.primary {
+    grid-column: 1 / -1;
+  }
+  
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .dashboard-card.wide {
+    grid-column: 1;
+  }
+  
+  .jv-summary-bar {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  
+  .jv-sum-divider {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .project-title-block h1 {
+    font-size: 22px;
+  }
+  
+  .metrics-grid.four-cols {
+    grid-template-columns: 1fr;
+  }
+  
+  .metric-tile {
+    padding: 16px;
+  }
+  
+  .tile-value {
+    font-size: 20px;
+  }
+  
+  .section-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .jv-legend {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .card-body .jv-legend {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Portfolio Page */
+.portfolio-thead {
+  display: grid;
+  grid-template-columns: 2fr 0.8fr 0.6fr 1.2fr 1.2fr 1.2fr 0.8fr 1.2fr;
+}
+
+.portfolio-trow {
+  display: grid;
+  grid-template-columns: 2fr 0.8fr 0.6fr 1.2fr 1.2fr 1.2fr 0.8fr 1.2fr;
+  align-items: center;
+}
+
+.portfolio-trow .td {
+  text-align: right;
+}
+
+.portfolio-trow .td:first-child,
+.portfolio-trow .td:nth-child(2) {
+  text-align: left;
+}
+
+.portfolio-total {
+  border-top: 2px solid #3D2914;
+  background: #FAF6ED;
+  font-weight: 600;
+}
+
+.portfolio-profit {
+  color: #2E7D52;
+  font-weight: 600;
+}
+
+/* Pivot tables (projects as rows, line items as cols) */
+.pivot-thead {
+  display: flex;
+  background: #3D2914;
+  color: #F5ECD9;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.pivot-thead .td {
+  color: #F5ECD9;
+}
+
+.pivot-row {
+  display: flex;
+}
+
+.pivot-label {
+  flex: 0 0 180px;
+  min-width: 180px;
+  text-align: left;
+  font-weight: 500;
+}
+
+.pivot-val {
+  flex: 1;
+  text-align: right;
+  min-width: 90px;
+}
+
+.pivot-val.deduction {
+  color: #B85628;
+}
+
+.pivot-val.pivot-total {
+  font-weight: 700;
+  border-left: 2px solid #E8DCC8;
+}
+
+.pivot-val.pivot-profit {
+  color: #2E7D52;
+  font-weight: 600;
+}
+
+.pivot-total-row {
+  border-top: 2px solid #3D2914;
+  background: #FAF6ED;
+}

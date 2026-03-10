@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Deyaar Project Feasibility Model - Professional real estate development financial analysis tool" />
+    <meta name="theme-color" content="#3D2914" />
+    <meta name="color-scheme" content="light" />
+    
+    <!-- Official Deyaar Fonts from Logo Agent Pack -->
+    <!-- Acta Pro - Primary Display Font -->
+    <link rel="preconnect" href="https://fonts.cdnfonts.com" />
+    <link href="https://fonts.cdnfonts.com/css/acta-display" rel="stylesheet" />
+    
+    <!-- Helvetica Neue - Body Font (System fallback) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    
+    <title>Deyaar | Project Feasibility Model</title>
+    
+    <style>
+      /* Critical CSS for initial load - Official Deyaar Brand */
+      html {
+        background: #FAF6ED;
+      }
+      body {
+        margin: 0;
+        font-family: 'Helvetica Neue', Arial, Helvetica, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      #root {
+        min-height: 100vh;
+      }
+      /* Loading state with Deyaar branding */
+      .initial-loader {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #FAF6ED;
+        z-index: 9999;
+        transition: opacity 0.3s ease;
+      }
+      .initial-loader.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .initial-loader-content {
+        text-align: center;
+        padding: 40px;
+        background: #FFFFFF;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(61, 41, 20, 0.12);
+        border: 1px solid #E8DCC8;
+      }
+      .initial-loader-logo {
+        width: 160px;
+        height: auto;
+        margin-bottom: 24px;
+      }
+      .initial-loader-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #E8DCC8;
+        border-top-color: #D26935;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 16px;
+      }
+      .initial-loader-text {
+        font-family: 'Acta Display', Georgia, 'Times New Roman', serif;
+        font-size: 14px;
+        color: #3D2914;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        font-weight: 500;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <!-- Initial loading state - will be replaced by React -->
+      <div class="initial-loader" id="initial-loader">
+        <div class="initial-loader-content">
+          <img 
+            src="02%20LOGO%20AGENT%20PACK/LOGOS%20IN%20COLORS/DEYAAR_LOGO_EN_BROWN.png" 
+            alt="DEYAAR" 
+            class="initial-loader-logo"
+            onerror="this.src='https://image.discover.deyaar.ae/lib/fe28117373640478721079/m/1/708d41dc-ecb3-40da-b63b-8d24370d4ec1.png'"
+          />
+          <div class="initial-loader-spinner"></div>
+          <div class="initial-loader-text">Loading</div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Hide initial loader when app is ready
+      window.addEventListener('load', () => {
+        const loader = document.getElementById('initial-loader');
+        if (loader) {
+          setTimeout(() => {
+            loader.classList.add('hidden');
+            setTimeout(() => loader.remove(), 300);
+          }, 500);
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,381 @@
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import {
+  fetchProjects,
+  createProject,
+  deleteProject,
+  fetchFeasibility,
+  saveDraft,
+  freezeFeasibility,
+  editFrozenFeasibility,
+  fetchArchive,
+  fetchPortfolio,
+} from "./api/feasibility.api";
+import {
+  calculateMetrics,
+  emptyInputModel,
+  emptyModel,
+  hydrateModelFromRun,
+  serializeModelForSave,
+} from "./utils/calculations";
+import { useMobile } from "./hooks/useMobile";
+import Toast from "./components/Toast";
+import ProjectsPage from "./pages/ProjectsPage";
+import type { ClientModel, ProjectSummary, ArchivedRun, FeasibilityRun, FeasibilityMetrics } from "./types";
+
+const FeasibilityPage = lazy(() => import("./pages/FeasibilityPage"));
+const PortfolioPage = lazy(() => import("./pages/PortfolioPage"));
+const CommercialTeamPage = lazy(() => import("./pages/CommercialTeamPage"));
+const SalesTeamPage = lazy(() => import("./pages/SalesTeamPage"));
+const MarketingTeamPage = lazy(() => import("./pages/MarketingTeamPage"));
+const CollectionsTeamPage = lazy(() => import("./pages/CollectionsTeamPage"));
+const CollectionsForecastPage = lazy(() => import("./pages/CollectionsForecastPage"));
+const BudgetVsActualsPage = lazy(() => import("./pages/BudgetVsActualsPage"));
+
+// Extended project type with metrics for the feasibility portfolio dashboard
+interface ProjectWithMetrics extends ProjectSummary {
+  metrics?: FeasibilityMetrics;
+}
+
+interface ToastItem {
+  id: number;
+  message: string;
+  type: "success" | "error";
+}
+
+export default function App() {
+  const [screen, setScreen] = useState<"projects" | "feasibility" | "portfolio" | "commercial" | "sales" | "marketing" | "collections" | "collectionsForecast" | "budget">("projects");
+  const [projects, setProjects] = useState<ProjectWithMetrics[]>([]);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [model, setModel] = useState<ClientModel>(emptyModel());
+  const [archive, setArchive] = useState<ArchivedRun[]>([]);
+  const [status, setStatus] = useState("Ready");
+  const [loading, setLoading] = useState(false);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [activeSection, setActiveSection] = useState("Project");
+  
+  const mobile = useMobile();
+
+  const metrics = useMemo(() => calculateMetrics(model), [model]);
+  const shareTotal = useMemo(
+    () => model.partners.reduce((sum, p) => sum + (Number(p.share) || 0), 0),
+    [model.partners]
+  );
+  const shareValid = Math.abs(shareTotal - 100) < 0.01;
+  const isFrozen = model.status === "frozen";
+
+  const addToast = (message: string, type: "success" | "error" = "success") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+  };
+  const removeToast = (id: number) => setToasts((prev) => prev.filter((t) => t.id !== id));
+
+  // ---- Projects ----
+
+  const loadProjects = async () => {
+    setLoading(true);
+    try {
+      const data = await fetchProjects();
+      // Enrich projects with metrics from their latest feasibility runs
+      const enrichedProjects = await enrichProjectsWithMetrics(data);
+      setProjects(enrichedProjects);
+      setStatus(`Loaded ${data.length} project(s)`);
+    } catch (error) {
+      setStatus((error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch feasibility data for projects and calculate metrics
+  const enrichProjectsWithMetrics = async (projects: ProjectSummary[]): Promise<ProjectWithMetrics[]> => {
+    const portfolioRuns = await fetchPortfolio();
+    const runMap = new Map(portfolioRuns.map((run) => [Number(run.projectId), run]));
+
+    return projects.map((project) => {
+      const run = runMap.get(project.id);
+      if (run) {
+        return { ...project, metrics: run.metrics };
+      }
+      return project;
+    });
+  };
+
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  const openProject = async (projectId: number, projectName: string) => {
+    setLoading(true);
+    try {
+      const run = await fetchFeasibility(projectId);
+      if (run) {
+        setModel(
+          hydrateModelFromRun({
+            runId: Number(run.id),
+            projectId,
+            projectName,
+            version: run.version,
+            status: run.status,
+            payload: run.payload as unknown as Record<string, unknown>,
+          })
+        );
+      } else {
+        setModel(emptyModel(projectName, projectId));
+      }
+
+      // Load archive
+      const arch = await fetchArchive(projectId);
+      setArchive(arch);
+
+      setScreen("feasibility");
+      setStatus(`Opened ${projectName}`);
+    } catch (error) {
+      setStatus((error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openNewProject = async () => {
+    const name = newProjectName.trim();
+    if (!name) {
+      setStatus("Enter a project name to continue");
+      addToast("Enter a project name to continue", "error");
+      return;
+    }
+    setLoading(true);
+    try {
+      const project = await createProject(name);
+      setModel(emptyModel(project.name, project.id));
+      setArchive([]);
+      setScreen("feasibility");
+      setNewProjectName("");
+      setStatus(`New project: ${project.name}`);
+      addToast(`New project created: ${project.name}`);
+    } catch (error) {
+      setStatus((error as Error).message);
+      addToast((error as Error).message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteProject = async (projectId: number, projectName: string) => {
+    setLoading(true);
+    try {
+      await deleteProject(projectId);
+      addToast(`Deleted project: ${projectName}`);
+      await loadProjects();
+    } catch (error) {
+      setStatus((error as Error).message);
+      addToast((error as Error).message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ---- Feasibility ----
+
+  const onInputChange = (key: string, value: string) => {
+    if (isFrozen) return;
+    setModel((prev) => ({ ...prev, input: { ...prev.input, [key]: value } }));
+  };
+
+  const onPartnerChange = (index: number, key: string, value: string) => {
+    if (isFrozen) return;
+    setModel((prev) => ({
+      ...prev,
+      partners: prev.partners.map((p, i) => (i === index ? { ...p, [key]: value } : p)),
+    }));
+  };
+
+  const addPartner = () => {
+    if (isFrozen) return;
+    const remaining = Math.max(0, 100 - shareTotal);
+    setModel((prev) => ({
+      ...prev,
+      partners: [...prev.partners, { name: `Partner ${prev.partners.length + 1}`, share: String(remaining) }],
+    }));
+  };
+
+  const removePartner = (index: number) => {
+    if (isFrozen || model.partners.length <= 1) return;
+    setModel((prev) => ({ ...prev, partners: prev.partners.filter((_, i) => i !== index) }));
+  };
+
+  const resetFields = () => {
+    if (isFrozen) return;
+    setModel((prev) => ({ ...prev, input: emptyInputModel(), partners: [{ name: "", share: "" }] }));
+    setStatus("Input fields cleared");
+    addToast("Fields reset to defaults", "success");
+  };
+
+  const save = async () => {
+    if (!model.projectId) return;
+    setLoading(true);
+    try {
+      const payload = serializeModelForSave(model);
+      if (!(payload.projectName as string)) throw new Error("Project name is required");
+      const run = await saveDraft(model.projectId, payload);
+      setModel((prev) => ({ ...prev, runId: run.id, version: run.version, status: run.status }));
+      setStatus(run.version ? `Saved draft for v${run.version}` : "Saved draft");
+      addToast(run.version ? `Saved draft for v${run.version}` : "Saved draft");
+    } catch (error) {
+      setStatus((error as Error).message);
+      addToast((error as Error).message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const freeze = async () => {
+    if (!model.projectId) return;
+    setLoading(true);
+    try {
+      const run = await freezeFeasibility(model.projectId);
+      setModel((prev) => ({ ...prev, runId: run.id, version: run.version, status: "frozen" }));
+      setStatus(`Frozen v${run.version}`);
+      addToast(`Feasibility v${run.version} frozen`);
+    } catch (error) {
+      setStatus((error as Error).message);
+      addToast((error as Error).message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const editFrozen = async () => {
+    if (!model.projectId) return;
+    setLoading(true);
+    try {
+      const run = await editFrozenFeasibility(model.projectId);
+      setModel(
+        hydrateModelFromRun({
+          runId: Number(run.id),
+          projectId: model.projectId,
+          projectName: model.projectName,
+          version: run.version,
+          status: run.status,
+          payload: run.payload as unknown as Record<string, unknown>,
+        })
+      );
+      // Refresh archive
+      const arch = await fetchArchive(model.projectId);
+      setArchive(arch);
+      setStatus("Editing a new draft from the latest frozen feasibility");
+      addToast("Latest frozen version archived; draft reopened");
+    } catch (error) {
+      setStatus((error as Error).message);
+      addToast((error as Error).message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const backToProjects = async () => {
+    setScreen("projects");
+    setArchive([]);
+    mobile.closeSidebar();
+    await loadProjects();
+  };
+
+  return (
+    <>
+      {screen === "projects" ? (
+        <ProjectsPage
+          projects={projects}
+          newProjectName={newProjectName}
+          setNewProjectName={setNewProjectName}
+          loading={loading}
+          status={status}
+          onRefresh={loadProjects}
+          onOpenProject={openProject}
+          onOpenNewProject={openNewProject}
+          onDeleteProject={handleDeleteProject}
+          onNewProjectNameChange={setNewProjectName}
+          onNavigateToCommercial={() => setScreen("commercial")}
+          onNavigateToSales={() => setScreen("sales")}
+          onNavigateToMarketing={() => setScreen("marketing")}
+          onNavigateToCollections={() => setScreen("collections")}
+          onNavigateToCollectionsForecast={() => setScreen("collectionsForecast")}
+          onNavigateToBudget={() => setScreen("budget")}
+        />
+      ) : (
+        <Suspense fallback={<div className="loading-state">Loading screen...</div>}>
+          {screen === "portfolio" ? (
+            <PortfolioPage
+              onBack={backToProjects}
+              onOpenProject={openProject}
+            />
+          ) : screen === "commercial" ? (
+            <CommercialTeamPage
+              projects={projects}
+              onBack={backToProjects}
+            />
+          ) : screen === "sales" ? (
+            <SalesTeamPage
+              projects={projects}
+              onBack={backToProjects}
+            />
+          ) : screen === "marketing" ? (
+            <MarketingTeamPage
+              projects={projects}
+              onBack={backToProjects}
+            />
+          ) : screen === "collections" ? (
+            <CollectionsTeamPage
+              projects={projects}
+              onBack={backToProjects}
+            />
+          ) : screen === "collectionsForecast" ? (
+            <CollectionsForecastPage
+              projects={projects}
+              onBack={backToProjects}
+            />
+          ) : screen === "budget" ? (
+            <BudgetVsActualsPage
+              projects={projects}
+              onBack={backToProjects}
+            />
+          ) : (
+            <FeasibilityPage
+              model={model}
+              metrics={metrics}
+              shareTotal={shareTotal}
+              shareValid={shareValid}
+              activeSection={activeSection}
+              setActiveSection={setActiveSection}
+              loading={loading}
+              status={status}
+              archive={archive}
+              isMobile={mobile.isMobile}
+              sidebarOpen={mobile.sidebarOpen}
+              onOpenSidebar={mobile.openSidebar}
+              onCloseSidebar={mobile.closeSidebar}
+              onInputChange={onInputChange}
+              onPartnerChange={onPartnerChange}
+              onAddPartner={addPartner}
+              onRemovePartner={removePartner}
+              onSetProjectName={(v) => { if (!isFrozen) setModel((prev) => ({ ...prev, projectName: v })); }}
+              onBack={backToProjects}
+              onReset={resetFields}
+              onSave={save}
+              onFreeze={freeze}
+              onEditFrozen={editFrozen}
+            />
+          )}
+        </Suspense>
+      )}
+
+      <div className={`loading-overlay ${loading ? "active" : ""}`}>
+        <div className="spinner" />
+      </div>
+
+      <div className="toast-container">
+        {toasts.map((t) => (
+          <Toast key={t.id} message={t.message} type={t.type} onClose={() => removeToast(t.id)} />
+        ))}
+      </div>
+    </>
+  );
+}
