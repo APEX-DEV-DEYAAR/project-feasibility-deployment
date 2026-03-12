@@ -7,20 +7,18 @@ export class ProjectRepository {
   async findAll(): Promise<ProjectSummary[]> {
     const { rows } = await this.db.query<ProjectSummary>(
       `SELECT
-         p.id::int,
+         p.id,
          p.name,
-         fr.version::int  AS "latestVersion",
+         fr.version  AS "latestVersion",
          fr.status,
-         (fr.run_id IS NOT NULL) AS "hasFeasibility",
+         ${this.db.boolExpr('fr.run_id IS NOT NULL')} AS "hasFeasibility",
          COALESCE(fr.updated_at, p.created_at) AS "updatedAt"
        FROM projects p
-       LEFT JOIN LATERAL (
-         SELECT id AS run_id, version, status, updated_at
+       LEFT JOIN (
+         SELECT id AS run_id, project_id, version, status, updated_at,
+           ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY COALESCE(version, 0) DESC, updated_at DESC) AS rn
          FROM feasibility_runs
-         WHERE project_id = p.id
-         ORDER BY COALESCE(version, 0) DESC, updated_at DESC
-         LIMIT 1
-       ) fr ON true
+       ) fr ON fr.project_id = p.id AND fr.rn = 1
        ORDER BY COALESCE(fr.updated_at, p.created_at) DESC`
     );
     return rows;
@@ -28,7 +26,7 @@ export class ProjectRepository {
 
   async findById(id: number): Promise<Project | null> {
     const { rows } = await this.db.query<Project>(
-      `SELECT id::int, name, created_at AS "createdAt"
+      `SELECT id, name, created_at AS "createdAt"
        FROM projects
        WHERE id = ${this.db.placeholder(1)}`,
       [id]
@@ -38,7 +36,7 @@ export class ProjectRepository {
 
   async findByName(name: string): Promise<Project | null> {
     const { rows } = await this.db.query<Project>(
-      `SELECT id::int, name, created_at AS "createdAt"
+      `SELECT id, name, created_at AS "createdAt"
        FROM projects
        WHERE name = ${this.db.placeholder(1)}`,
       [name]
@@ -47,13 +45,13 @@ export class ProjectRepository {
   }
 
   async create(name: string): Promise<Project> {
-    const { rows } = await this.db.query<Project>(
-      `INSERT INTO projects (name)
-       VALUES (${this.db.placeholder(1)})
-       RETURNING id, name, created_at AS "createdAt"`,
-      [name]
+    const result = await this.db.insertReturning<Project>(
+      "projects",
+      ["name"],
+      [name],
+      'id, name, created_at AS "createdAt"'
     );
-    return rows[0];
+    return result.rows[0];
   }
 
   async delete(id: number): Promise<boolean> {

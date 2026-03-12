@@ -8,6 +8,30 @@ import type {
   TeamCode,
 } from "../types/index.js";
 
+const COST_INSERT_COLS = [
+  "project_id", "category_id", "year", "month",
+  "actual_amount", "projected_amount", "budget_amount", "notes", "created_by",
+] as const;
+
+const COST_UPDATE_COLS = [
+  "actual_amount", "projected_amount", "budget_amount", "notes", "created_by",
+] as const;
+
+const COST_CONFLICT_COLS = ["project_id", "category_id", "year", "month"] as const;
+
+const COST_SELECT = `id,
+         project_id AS "projectId",
+         category_id AS "categoryId",
+         year,
+         month,
+         actual_amount AS "actualAmount",
+         projected_amount AS "projectedAmount",
+         budget_amount AS "budgetAmount",
+         notes,
+         created_by AS "createdBy",
+         created_at AS "createdAt",
+         updated_at AS "updatedAt"`;
+
 export class CostTrackingRepository {
   constructor(private readonly db: BaseAdapter) {}
 
@@ -22,7 +46,7 @@ export class CostTrackingRepository {
     }
     const { rows } = await this.db.query<CostCategory>(
       `SELECT
-         id::int,
+         id,
          code,
          name,
          description,
@@ -62,14 +86,14 @@ export class CostTrackingRepository {
 
     const { rows } = await this.db.query<ProjectMonthlyCost>(
       `SELECT
-         pmc.id::int,
-         pmc.project_id::int AS "projectId",
-         pmc.category_id::int AS "categoryId",
+         pmc.id,
+         pmc.project_id AS "projectId",
+         pmc.category_id AS "categoryId",
          pmc.year,
          pmc.month,
-         pmc.actual_amount::float AS "actualAmount",
-         pmc.projected_amount::float AS "projectedAmount",
-         pmc.budget_amount::float AS "budgetAmount",
+         pmc.actual_amount AS "actualAmount",
+         pmc.projected_amount AS "projectedAmount",
+         pmc.budget_amount AS "budgetAmount",
          pmc.notes,
          pmc.created_by AS "createdBy",
          pmc.created_at AS "createdAt",
@@ -90,14 +114,14 @@ export class CostTrackingRepository {
   async getMonthlyCostsForAllProjects(year: number): Promise<ProjectMonthlyCost[]> {
     const { rows } = await this.db.query<ProjectMonthlyCost>(
       `SELECT
-         pmc.id::int,
-         pmc.project_id::int AS "projectId",
-         pmc.category_id::int AS "categoryId",
+         pmc.id,
+         pmc.project_id AS "projectId",
+         pmc.category_id AS "categoryId",
          pmc.year,
          pmc.month,
-         pmc.actual_amount::float AS "actualAmount",
-         pmc.projected_amount::float AS "projectedAmount",
-         pmc.budget_amount::float AS "budgetAmount",
+         pmc.actual_amount AS "actualAmount",
+         pmc.projected_amount AS "projectedAmount",
+         pmc.budget_amount AS "budgetAmount",
          pmc.notes,
          pmc.created_by AS "createdBy",
          pmc.created_at AS "createdAt",
@@ -116,35 +140,12 @@ export class CostTrackingRepository {
   }
 
   async saveMonthlyCost(payload: SaveMonthlyCostPayload): Promise<ProjectMonthlyCost> {
-    const { rows } = await this.db.query<ProjectMonthlyCost>(
-      `INSERT INTO project_monthly_costs
-         (project_id, category_id, year, month, actual_amount, projected_amount, budget_amount, notes, created_by)
-       VALUES
-         (${this.db.placeholder(1)}, ${this.db.placeholder(2)}, ${this.db.placeholder(3)},
-          ${this.db.placeholder(4)}, ${this.db.placeholder(5)}, ${this.db.placeholder(6)},
-          ${this.db.placeholder(7)}, ${this.db.placeholder(8)}, ${this.db.placeholder(9)})
-       ON CONFLICT (project_id, category_id, year, month)
-       DO UPDATE SET
-         actual_amount = EXCLUDED.actual_amount,
-         projected_amount = EXCLUDED.projected_amount,
-         budget_amount = EXCLUDED.budget_amount,
-         notes = EXCLUDED.notes,
-         created_by = EXCLUDED.created_by,
-         updated_at = NOW()
-       RETURNING
-         id::int,
-         project_id::int AS "projectId",
-         category_id::int AS "categoryId",
-         year,
-         month,
-         actual_amount::float AS "actualAmount",
-         projected_amount::float AS "projectedAmount",
-         budget_amount::float AS "budgetAmount",
-         notes,
-         created_by AS "createdBy",
-         created_at AS "createdAt",
-         updated_at AS "updatedAt"`,
-      [
+    const result = await this.db.upsertReturning<ProjectMonthlyCost>({
+      table: "project_monthly_costs",
+      conflictCols: [...COST_CONFLICT_COLS],
+      insertCols: [...COST_INSERT_COLS],
+      updateCols: [...COST_UPDATE_COLS],
+      values: [
         payload.projectId,
         payload.categoryId,
         payload.year,
@@ -154,14 +155,19 @@ export class CostTrackingRepository {
         payload.budgetAmount ?? null,
         payload.notes ?? null,
         payload.createdBy ?? null,
-      ]
-    );
-    return rows[0];
+      ],
+      selectExpr: COST_SELECT,
+      extraSetClauses: [`updated_at = ${this.db.nowExpression()}`],
+    });
+    return result.rows[0];
   }
 
   async bulkSaveMonthlyCosts(
     payloads: SaveMonthlyCostPayload[]
   ): Promise<ProjectMonthlyCost[]> {
+    if (payloads.length > 500) {
+      throw new Error("Bulk operations are limited to 500 items");
+    }
     const results: ProjectMonthlyCost[] = [];
     for (const payload of payloads) {
       const result = await this.saveMonthlyCost(payload);
@@ -202,16 +208,16 @@ export class CostTrackingRepository {
 
     const { rows } = await this.db.query<CostSummaryItem>(
       `SELECT
-         project_id::int AS "projectId",
+         project_id AS "projectId",
          project_name AS "projectName",
          year,
          month,
-         total_actual::float AS "totalActual",
-         total_projected::float AS "totalProjected",
-         total_budget::float AS "totalBudget",
-         blended_total::float AS "blendedTotal",
-         categories_with_actual::int AS "categoriesWithActual",
-         total_categories::int AS "totalCategories"
+         total_actual AS "totalActual",
+         total_projected AS "totalProjected",
+         total_budget AS "totalBudget",
+         blended_total AS "blendedTotal",
+         categories_with_actual AS "categoriesWithActual",
+         total_categories AS "totalCategories"
        FROM project_cost_summary
        WHERE project_id = ${this.db.placeholder(1)}
          ${yearFilter}
@@ -234,18 +240,18 @@ export class CostTrackingRepository {
 
     const { rows } = await this.db.query<CostAnnualSummaryItem>(
       `SELECT
-         project_id::int AS "projectId",
+         project_id AS "projectId",
          project_name AS "projectName",
          year,
          category_code AS "categoryCode",
          category_name AS "categoryName",
          category_team AS "categoryTeam",
-         annual_actual::float AS "annualActual",
-         annual_projected::float AS "annualProjected",
-         annual_budget::float AS "annualBudget",
-         ytd_actual::float AS "ytdActual",
-         ytd_projected::float AS "ytdProjected",
-         months_with_actual::int AS "monthsWithActual"
+         annual_actual AS "annualActual",
+         annual_projected AS "annualProjected",
+         annual_budget AS "annualBudget",
+         ytd_actual AS "ytdActual",
+         ytd_projected AS "ytdProjected",
+         months_with_actual AS "monthsWithActual"
        FROM project_cost_annual_summary
        WHERE project_id = ${this.db.placeholder(1)}
          ${yearFilter}
@@ -344,14 +350,13 @@ export class CostTrackingRepository {
 
   async clearProjectData(projectId: number, team?: TeamCode): Promise<number> {
     if (team) {
-      const { rowCount } = await this.db.query(
-        `DELETE FROM project_monthly_costs pmc
-         USING cost_categories cc
-         WHERE pmc.category_id = cc.id
-           AND pmc.project_id = ${this.db.placeholder(1)}
-           AND cc.team = ${this.db.placeholder(2)}`,
-        [projectId, team]
+      const sql = this.db.deleteWithJoin(
+        "project_monthly_costs", "pmc",
+        "cost_categories", "cc",
+        "pmc.category_id = cc.id",
+        `pmc.project_id = ${this.db.placeholder(1)} AND cc.team = ${this.db.placeholder(2)}`
       );
+      const { rowCount } = await this.db.query(sql, [projectId, team]);
       return rowCount;
     }
 

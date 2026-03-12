@@ -1,3 +1,17 @@
+// ---------- Auth ----------
+
+export type UserRole = "admin" | "sales" | "collections" | "commercial" | "finance";
+
+export interface AuthUser {
+  userId: number;
+  username: string;
+  role: UserRole;
+}
+
+export interface LoginResponse {
+  user: AuthUser;
+}
+
 // ---------- Client-side Model (form state, string values) ----------
 
 export interface ClientInputModel {

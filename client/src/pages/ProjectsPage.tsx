@@ -1,9 +1,19 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import DeyaarLogo from "../components/DeyaarLogo";
 import WaterfallChart from "../components/WaterfallChart";
 import DonutChart from "../components/DonutChart";
 import { formatM, formatInt } from "../utils/formatters";
-import type { ProjectSummary, FeasibilityMetrics } from "../types";
+import { registerUser, fetchUsers, resetUserPassword } from "../api/auth.api";
+import type { UserListItem } from "../api/auth.api";
+import type { ProjectSummary, FeasibilityMetrics, UserRole } from "../types";
+
+const AVAILABLE_ROLES: { value: UserRole; label: string }[] = [
+  { value: "admin", label: "Admin" },
+  { value: "commercial", label: "Commercial" },
+  { value: "sales", label: "Sales" },
+  { value: "collections", label: "Collections" },
+  { value: "finance", label: "Finance" },
+];
 
 // Extended project type with metrics for the feasibility portfolio view
 interface ProjectWithMetrics extends ProjectSummary {
@@ -27,6 +37,9 @@ interface ProjectsPageProps {
   onNavigateToCollections?: () => void;
   onNavigateToCollectionsForecast?: () => void;
   onNavigateToBudget?: () => void;
+  userRole?: UserRole;
+  userName?: string;
+  onLogout?: () => void;
 }
 
 export default function ProjectsPage({
@@ -46,8 +59,70 @@ export default function ProjectsPage({
   onNavigateToCollections,
   onNavigateToCollectionsForecast,
   onNavigateToBudget,
+  userRole,
+  userName,
+  onLogout,
 }: ProjectsPageProps) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [newUser, setNewUser] = useState({ username: "", password: "", role: "commercial" as UserRole });
+  const [addUserLoading, setAddUserLoading] = useState(false);
+  const [addUserMsg, setAddUserMsg] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [users, setUsers] = useState<UserListItem[]>([]);
+  const [resetPwId, setResetPwId] = useState<number | null>(null);
+  const [resetPwValue, setResetPwValue] = useState("");
+  const [resetPwLoading, setResetPwLoading] = useState(false);
+  const [resetPwMsg, setResetPwMsg] = useState<{ text: string; type: "success" | "error" } | null>(null);
+
+  const loadUsers = useCallback(async () => {
+    if (userRole !== "admin") return;
+    try {
+      const list = await fetchUsers();
+      setUsers(list);
+    } catch { /* ignore */ }
+  }, [userRole]);
+
+  useEffect(() => {
+    if (showAddUser) loadUsers();
+  }, [showAddUser, loadUsers]);
+
+  const handleAddUser = async () => {
+    if (!newUser.username.trim() || !newUser.password.trim()) {
+      setAddUserMsg({ text: "Username and password are required", type: "error" });
+      return;
+    }
+    setAddUserLoading(true);
+    setAddUserMsg(null);
+    try {
+      const created = await registerUser(newUser.username.trim(), newUser.password, newUser.role);
+      setAddUserMsg({ text: `User "${created.username}" created with role "${created.role}"`, type: "success" });
+      setNewUser({ username: "", password: "", role: "commercial" });
+      await loadUsers();
+    } catch (err) {
+      setAddUserMsg({ text: (err as Error).message, type: "error" });
+    } finally {
+      setAddUserLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (userId: number) => {
+    if (!resetPwValue.trim()) {
+      setResetPwMsg({ text: "New password is required", type: "error" });
+      return;
+    }
+    setResetPwLoading(true);
+    setResetPwMsg(null);
+    try {
+      await resetUserPassword(userId, resetPwValue);
+      setResetPwMsg({ text: "Password updated successfully", type: "success" });
+      setResetPwValue("");
+      setResetPwId(null);
+    } catch (err) {
+      setResetPwMsg({ text: (err as Error).message, type: "error" });
+    } finally {
+      setResetPwLoading(false);
+    }
+  };
 
   // Calculate feasibility portfolio-level metrics
   const portfolioMetrics = useMemo(() => {
@@ -105,28 +180,53 @@ export default function ProjectsPage({
           <div className="topbar-title">Deyaar Feasibility Portfolio</div>
         </div>
         <div className="topbar-actions">
-          <button className="btn btn-ghost" onClick={onNavigateToCommercial} title="Commercial Team Cost Tracking">
-            Commercial
-          </button>
-          <button className="btn btn-ghost" onClick={onNavigateToSales} title="Sales Team Portal">
-            Sales
-          </button>
-          <button className="btn btn-ghost" onClick={onNavigateToMarketing} title="Marketing Team Portal">
-            Marketing
-          </button>
-          <button className="btn btn-ghost" onClick={onNavigateToCollections} title="Collections Team Portal">
-            Collections
-          </button>
-          <button className="btn btn-ghost" onClick={onNavigateToCollectionsForecast} title="Collections Forecast System">
-            Collections Forecast
-          </button>
-          <button className="btn btn-ghost" onClick={onNavigateToBudget} title="Budget vs Actuals">
-            Budget vs Actuals
-          </button>
+          {onNavigateToCommercial && (
+            <button className="btn btn-ghost" onClick={onNavigateToCommercial} title="Commercial Team Cost Tracking">
+              Commercial
+            </button>
+          )}
+          {onNavigateToSales && (
+            <button className="btn btn-ghost" onClick={onNavigateToSales} title="Sales Team Portal">
+              Sales
+            </button>
+          )}
+          {onNavigateToMarketing && (
+            <button className="btn btn-ghost" onClick={onNavigateToMarketing} title="Marketing Team Portal">
+              Marketing
+            </button>
+          )}
+          {onNavigateToCollections && (
+            <button className="btn btn-ghost" onClick={onNavigateToCollections} title="Collections Team Portal">
+              Collections
+            </button>
+          )}
+          {onNavigateToCollectionsForecast && (
+            <button className="btn btn-ghost" onClick={onNavigateToCollectionsForecast} title="Collections Forecast System">
+              Collections Forecast
+            </button>
+          )}
+          {onNavigateToBudget && (
+            <button className="btn btn-ghost" onClick={onNavigateToBudget} title="Budget vs Actuals">
+              Budget vs Actuals
+            </button>
+          )}
           <span className="topbar-tag">Feasibility Portfolio</span>
+          {userName && (
+            <span className="topbar-tag" style={{ textTransform: "capitalize" }}>{userName}{userRole ? ` (${userRole})` : ""}</span>
+          )}
+          {userRole === "admin" && (
+            <button className="btn btn-ghost" onClick={() => setShowAddUser(true)} title="Add User">
+              + Add User
+            </button>
+          )}
           <button className="btn btn-ghost btn-icon" onClick={onRefresh} disabled={loading} title="Refresh">
             ↻
           </button>
+          {onLogout && (
+            <button className="btn btn-ghost" onClick={onLogout} title="Sign out" style={{ color: "#f87171" }}>
+              Sign Out
+            </button>
+          )}
         </div>
       </header>
 
@@ -427,6 +527,304 @@ export default function ProjectsPage({
         </div>
         <span>{new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
       </footer>
+
+      {/* Admin User Management Modal */}
+      {showAddUser && (
+        <div style={modalStyles.overlay} onClick={() => { setShowAddUser(false); setAddUserMsg(null); setResetPwMsg(null); setResetPwId(null); }}>
+          <div style={modalStyles.card} onClick={(e) => e.stopPropagation()}>
+            <div style={modalStyles.header}>
+              <h3 style={modalStyles.title}>User Management</h3>
+              <button style={modalStyles.closeBtn} onClick={() => { setShowAddUser(false); setAddUserMsg(null); setResetPwMsg(null); setResetPwId(null); }}>
+                ✕
+              </button>
+            </div>
+
+            {/* --- Add New User Section --- */}
+            <div style={modalStyles.sectionLabel}>Add New User</div>
+
+            {addUserMsg && (
+              <div style={{
+                ...modalStyles.msg,
+                background: addUserMsg.type === "success" ? "#0f291a" : "#451a22",
+                color: addUserMsg.type === "success" ? "#86efac" : "#fca5a5",
+                border: `1px solid ${addUserMsg.type === "success" ? "#166534" : "#7f1d1d"}`,
+              }}>
+                {addUserMsg.text}
+              </div>
+            )}
+
+            <label style={modalStyles.label}>
+              Username
+              <input
+                type="text"
+                value={newUser.username}
+                onChange={(e) => setNewUser((prev) => ({ ...prev, username: e.target.value }))}
+                style={modalStyles.input}
+                autoFocus
+                placeholder="Enter username"
+              />
+            </label>
+
+            <label style={modalStyles.label}>
+              Password
+              <input
+                type="password"
+                value={newUser.password}
+                onChange={(e) => setNewUser((prev) => ({ ...prev, password: e.target.value }))}
+                style={modalStyles.input}
+                placeholder="Enter password"
+              />
+            </label>
+
+            <label style={modalStyles.label}>
+              Department / Role
+              <select
+                value={newUser.role}
+                onChange={(e) => setNewUser((prev) => ({ ...prev, role: e.target.value as UserRole }))}
+                style={modalStyles.input}
+              >
+                {AVAILABLE_ROLES.map((r) => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
+              </select>
+            </label>
+
+            <div style={modalStyles.actions}>
+              <button
+                style={modalStyles.cancelBtn}
+                onClick={() => { setShowAddUser(false); setAddUserMsg(null); setResetPwMsg(null); setResetPwId(null); }}
+              >
+                Cancel
+              </button>
+              <button
+                style={modalStyles.submitBtn}
+                onClick={handleAddUser}
+                disabled={addUserLoading}
+              >
+                {addUserLoading ? "Creating..." : "Create User"}
+              </button>
+            </div>
+
+            {/* --- Existing Users Section --- */}
+            <div style={{ ...modalStyles.divider }} />
+            <div style={modalStyles.sectionLabel}>Existing Users</div>
+
+            {resetPwMsg && (
+              <div style={{
+                ...modalStyles.msg,
+                background: resetPwMsg.type === "success" ? "#0f291a" : "#451a22",
+                color: resetPwMsg.type === "success" ? "#86efac" : "#fca5a5",
+                border: `1px solid ${resetPwMsg.type === "success" ? "#166534" : "#7f1d1d"}`,
+              }}>
+                {resetPwMsg.text}
+              </div>
+            )}
+
+            <div style={modalStyles.userList}>
+              {users.map((u) => (
+                <div key={u.id} style={modalStyles.userRow}>
+                  <div style={modalStyles.userInfo}>
+                    <span style={modalStyles.userName}>{u.username}</span>
+                    <span style={modalStyles.userRole}>{u.role}</span>
+                  </div>
+                  {resetPwId === u.id ? (
+                    <div style={modalStyles.resetForm}>
+                      <input
+                        type="password"
+                        value={resetPwValue}
+                        onChange={(e) => setResetPwValue(e.target.value)}
+                        style={{ ...modalStyles.input, padding: "6px 10px", fontSize: "13px", flex: 1 }}
+                        placeholder="New password"
+                        onKeyDown={(e) => e.key === "Enter" && handleResetPassword(u.id)}
+                      />
+                      <button
+                        style={{ ...modalStyles.submitBtn, padding: "6px 12px", fontSize: "12px" }}
+                        onClick={() => handleResetPassword(u.id)}
+                        disabled={resetPwLoading}
+                      >
+                        {resetPwLoading ? "..." : "Save"}
+                      </button>
+                      <button
+                        style={{ ...modalStyles.cancelBtn, padding: "6px 10px", fontSize: "12px" }}
+                        onClick={() => { setResetPwId(null); setResetPwValue(""); setResetPwMsg(null); }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      style={modalStyles.resetBtn}
+                      onClick={() => { setResetPwId(u.id); setResetPwValue(""); setResetPwMsg(null); }}
+                    >
+                      Reset Password
+                    </button>
+                  )}
+                </div>
+              ))}
+              {users.length === 0 && (
+                <div style={{ color: "#64748b", fontSize: "13px", textAlign: "center" as const, padding: "12px" }}>
+                  No users found
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+const modalStyles: Record<string, React.CSSProperties> = {
+  overlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0, 0, 0, 0.6)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+  },
+  card: {
+    background: "#1e293b",
+    border: "1px solid #334155",
+    borderRadius: "12px",
+    padding: "28px 32px",
+    width: "100%",
+    maxWidth: "500px",
+    maxHeight: "90vh",
+    overflowY: "auto",
+    display: "flex",
+    flexDirection: "column",
+    gap: "16px",
+    boxShadow: "0 25px 50px rgba(0,0,0,0.5)",
+  },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  title: {
+    color: "#f1f5f9",
+    fontSize: "18px",
+    fontWeight: 700,
+    margin: 0,
+  },
+  closeBtn: {
+    background: "none",
+    border: "none",
+    color: "#94a3b8",
+    fontSize: "18px",
+    cursor: "pointer",
+    padding: "4px 8px",
+  },
+  msg: {
+    padding: "10px 14px",
+    borderRadius: "8px",
+    fontSize: "13px",
+  },
+  label: {
+    color: "#cbd5e1",
+    fontSize: "13px",
+    fontWeight: 500,
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
+  },
+  input: {
+    background: "#0f172a",
+    border: "1px solid #334155",
+    borderRadius: "8px",
+    padding: "10px 14px",
+    color: "#f1f5f9",
+    fontSize: "14px",
+    outline: "none",
+  },
+  actions: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: "10px",
+    marginTop: "8px",
+  },
+  cancelBtn: {
+    background: "transparent",
+    border: "1px solid #334155",
+    borderRadius: "8px",
+    padding: "10px 20px",
+    color: "#94a3b8",
+    fontSize: "14px",
+    cursor: "pointer",
+  },
+  submitBtn: {
+    background: "#3b82f6",
+    border: "none",
+    borderRadius: "8px",
+    padding: "10px 20px",
+    color: "#fff",
+    fontSize: "14px",
+    fontWeight: 600,
+    cursor: "pointer",
+  },
+  divider: {
+    height: "1px",
+    background: "#334155",
+    margin: "4px 0",
+  },
+  sectionLabel: {
+    color: "#94a3b8",
+    fontSize: "12px",
+    fontWeight: 600,
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.05em",
+  },
+  userList: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "8px",
+  },
+  userRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    background: "#0f172a",
+    borderRadius: "8px",
+    padding: "10px 14px",
+    gap: "10px",
+    flexWrap: "wrap" as const,
+  },
+  userInfo: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+  },
+  userName: {
+    color: "#f1f5f9",
+    fontSize: "14px",
+    fontWeight: 500,
+  },
+  userRole: {
+    color: "#64748b",
+    fontSize: "12px",
+    background: "#1e293b",
+    border: "1px solid #334155",
+    borderRadius: "4px",
+    padding: "2px 8px",
+    textTransform: "capitalize" as const,
+  },
+  resetBtn: {
+    background: "transparent",
+    border: "1px solid #334155",
+    borderRadius: "6px",
+    padding: "5px 12px",
+    color: "#94a3b8",
+    fontSize: "12px",
+    cursor: "pointer",
+    whiteSpace: "nowrap" as const,
+  },
+  resetForm: {
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    flex: 1,
+    minWidth: "200px",
+  },
+};

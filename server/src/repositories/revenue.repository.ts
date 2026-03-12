@@ -4,6 +4,29 @@ import type {
   SaveMonthlyCollectionsPayload,
 } from "../types/index.js";
 
+const COLLECTIONS_INSERT_COLS = [
+  "project_id", "year", "month",
+  "budget_amount", "actual_amount", "projected_amount", "notes", "created_by",
+] as const;
+
+const COLLECTIONS_UPDATE_COLS = [
+  "budget_amount", "actual_amount", "projected_amount", "notes", "created_by",
+] as const;
+
+const COLLECTIONS_CONFLICT_COLS = ["project_id", "year", "month"] as const;
+
+const COLLECTIONS_SELECT = `id,
+         project_id AS "projectId",
+         year,
+         month,
+         budget_amount AS "budgetAmount",
+         actual_amount AS "actualAmount",
+         projected_amount AS "projectedAmount",
+         notes,
+         created_by AS "createdBy",
+         created_at AS "createdAt",
+         updated_at AS "updatedAt"`;
+
 export class CollectionsRepository {
   constructor(private readonly db: BaseAdapter) {}
 
@@ -20,17 +43,7 @@ export class CollectionsRepository {
 
     const { rows } = await this.db.query<ProjectMonthlyCollections>(
       `SELECT
-         id::int,
-         project_id::int AS "projectId",
-         year,
-         month,
-         budget_amount::float AS "budgetAmount",
-         actual_amount::float AS "actualAmount",
-         projected_amount::float AS "projectedAmount",
-         notes,
-         created_by AS "createdBy",
-         created_at AS "createdAt",
-         updated_at AS "updatedAt"
+         ${COLLECTIONS_SELECT}
        FROM project_monthly_revenue
        WHERE project_id = ${this.db.placeholder(1)}
          ${yearFilter}
@@ -41,34 +54,12 @@ export class CollectionsRepository {
   }
 
   async saveMonthlyCollections(payload: SaveMonthlyCollectionsPayload): Promise<ProjectMonthlyCollections> {
-    const { rows } = await this.db.query<ProjectMonthlyCollections>(
-      `INSERT INTO project_monthly_revenue
-         (project_id, year, month, budget_amount, actual_amount, projected_amount, notes, created_by)
-       VALUES
-         (${this.db.placeholder(1)}, ${this.db.placeholder(2)}, ${this.db.placeholder(3)},
-          ${this.db.placeholder(4)}, ${this.db.placeholder(5)}, ${this.db.placeholder(6)},
-          ${this.db.placeholder(7)}, ${this.db.placeholder(8)})
-       ON CONFLICT (project_id, year, month)
-       DO UPDATE SET
-         budget_amount = EXCLUDED.budget_amount,
-         actual_amount = EXCLUDED.actual_amount,
-         projected_amount = EXCLUDED.projected_amount,
-         notes = EXCLUDED.notes,
-         created_by = EXCLUDED.created_by,
-         updated_at = NOW()
-       RETURNING
-         id::int,
-         project_id::int AS "projectId",
-         year,
-         month,
-         budget_amount::float AS "budgetAmount",
-         actual_amount::float AS "actualAmount",
-         projected_amount::float AS "projectedAmount",
-         notes,
-         created_by AS "createdBy",
-         created_at AS "createdAt",
-         updated_at AS "updatedAt"`,
-      [
+    const result = await this.db.upsertReturning<ProjectMonthlyCollections>({
+      table: "project_monthly_revenue",
+      conflictCols: [...COLLECTIONS_CONFLICT_COLS],
+      insertCols: [...COLLECTIONS_INSERT_COLS],
+      updateCols: [...COLLECTIONS_UPDATE_COLS],
+      values: [
         payload.projectId,
         payload.year,
         payload.month,
@@ -77,14 +68,19 @@ export class CollectionsRepository {
         payload.projectedAmount ?? null,
         payload.notes ?? null,
         payload.createdBy ?? null,
-      ]
-    );
-    return rows[0];
+      ],
+      selectExpr: COLLECTIONS_SELECT,
+      extraSetClauses: [`updated_at = ${this.db.nowExpression()}`],
+    });
+    return result.rows[0];
   }
 
   async bulkSaveMonthlyCollections(
     payloads: SaveMonthlyCollectionsPayload[]
   ): Promise<ProjectMonthlyCollections[]> {
+    if (payloads.length > 500) {
+      throw new Error("Bulk operations are limited to 500 items");
+    }
     const results: ProjectMonthlyCollections[] = [];
     for (const payload of payloads) {
       const result = await this.saveMonthlyCollections(payload);

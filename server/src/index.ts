@@ -9,11 +9,14 @@ import { CostTrackingRepository } from "./repositories/cost-tracking.repository.
 import { CollectionsRepository } from "./repositories/revenue.repository.js";
 import { CollectionsForecastRepository } from "./repositories/collections-forecast.repository.js";
 import { CollectionsLookupRepository } from "./repositories/collections-lookup.repository.js";
+import { UserRepository } from "./repositories/user.repository.js";
+import { AuditLogRepository } from "./repositories/audit-log.repository.js";
 import { ProjectService } from "./services/project.service.js";
 import { FeasibilityService } from "./services/feasibility.service.js";
 import { CostTrackingService } from "./services/cost-tracking.service.js";
 import { CollectionsService } from "./services/revenue.service.js";
 import { CollectionsForecastService } from "./services/collections-forecast.service.js";
+import { AuthService } from "./services/auth.service.js";
 import { CostTrackingController } from "./controllers/cost-tracking.controller.js";
 import { CollectionsController } from "./controllers/revenue.controller.js";
 import { CollectionsForecastController } from "./controllers/collections-forecast.controller.js";
@@ -32,6 +35,8 @@ async function start(): Promise<void> {
   const collectionsRepo = new CollectionsRepository(db);
   const collectionsForecastRepo = new CollectionsForecastRepository(db);
   const collectionsLookupRepo = new CollectionsLookupRepository(db);
+  const userRepo = new UserRepository(db);
+  const auditLogRepo = new AuditLogRepository(db);
   await reportingRepo.backfill();
   await relationalRepo.backfillFromJson();
 
@@ -46,9 +51,13 @@ async function start(): Promise<void> {
   const collectionsService = new CollectionsService(collectionsRepo);
   const collectionsForecastService = new CollectionsForecastService(collectionsForecastRepo, collectionsLookupRepo);
   const costTrackingService = new CostTrackingService(costTrackingRepo, collectionsRepo);
+  const authService = new AuthService(userRepo, config.jwtSecret);
   const costTrackingController = new CostTrackingController(costTrackingService);
   const collectionsController = new CollectionsController(collectionsService);
   const collectionsForecastController = new CollectionsForecastController(collectionsForecastService);
+
+  // Seed default admin if no users exist
+  await authService.seedDefaultUser();
 
   const app = createApp({
     projectService,
@@ -56,6 +65,8 @@ async function start(): Promise<void> {
     costTrackingController,
     collectionsController,
     collectionsForecastController,
+    authService,
+    auditLogRepo,
   });
 
   app.listen(config.port, () => {

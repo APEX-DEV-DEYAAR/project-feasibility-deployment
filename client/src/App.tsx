@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchProjects,
   createProject,
@@ -10,6 +10,7 @@ import {
   fetchArchive,
   fetchPortfolio,
 } from "./api/feasibility.api";
+import { logout as apiLogout } from "./api/auth.api";
 import {
   calculateMetrics,
   emptyInputModel,
@@ -20,7 +21,8 @@ import {
 import { useMobile } from "./hooks/useMobile";
 import Toast from "./components/Toast";
 import ProjectsPage from "./pages/ProjectsPage";
-import type { ClientModel, ProjectSummary, ArchivedRun, FeasibilityRun, FeasibilityMetrics } from "./types";
+import LoginPage from "./pages/LoginPage";
+import type { ClientModel, ProjectSummary, ArchivedRun, FeasibilityMetrics, AuthUser, UserRole } from "./types";
 
 const FeasibilityPage = lazy(() => import("./pages/FeasibilityPage"));
 const PortfolioPage = lazy(() => import("./pages/PortfolioPage"));
@@ -42,7 +44,66 @@ interface ToastItem {
   type: "success" | "error";
 }
 
+// ---- Role-based screen access ----
+// admin sees everything, other roles see specific screens
+const ROLE_SCREENS: Record<UserRole, Set<string>> = {
+  admin: new Set(["projects", "feasibility", "portfolio", "commercial", "sales", "marketing", "collections", "collectionsForecast", "budget"]),
+  commercial: new Set(["projects", "feasibility", "portfolio", "commercial", "budget"]),
+  sales: new Set(["projects", "feasibility", "portfolio", "sales", "budget"]),
+  collections: new Set(["projects", "feasibility", "portfolio", "collections", "collectionsForecast", "budget"]),
+  finance: new Set(["projects", "feasibility", "portfolio", "budget", "commercial", "sales", "marketing", "collections", "collectionsForecast"]),
+};
+
+function canAccess(role: UserRole, screen: string): boolean {
+  return ROLE_SCREENS[role]?.has(screen) ?? false;
+}
+
+// ---- Restore session from localStorage ----
+function loadSession(): AuthUser | null {
+  try {
+    const raw = localStorage.getItem("user");
+    if (raw) {
+      return JSON.parse(raw) as AuthUser;
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
 export default function App() {
+  // Auth state
+  const [authUser, setAuthUser] = useState<AuthUser | null>(loadSession());
+
+  const handleLogin = useCallback((user: AuthUser) => {
+    localStorage.setItem("user", JSON.stringify(user));
+    setAuthUser(user);
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    await apiLogout();
+    localStorage.removeItem("user");
+    setAuthUser(null);
+  }, []);
+
+  // Listen for forced logout from the API client (401)
+  useEffect(() => {
+    const onForceLogout = () => handleLogout();
+    window.addEventListener("auth:logout", onForceLogout);
+    return () => window.removeEventListener("auth:logout", onForceLogout);
+  }, [handleLogout]);
+
+  // If not authenticated, show login
+  if (!authUser) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
+  return (
+    <AuthenticatedApp user={authUser} onLogout={handleLogout} />
+  );
+}
+
+// ---- The main app, shown only when logged in ----
+
+function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const [screen, setScreen] = useState<"projects" | "feasibility" | "portfolio" | "commercial" | "sales" | "marketing" | "collections" | "collectionsForecast" | "budget">("projects");
   const [projects, setProjects] = useState<ProjectWithMetrics[]>([]);
   const [newProjectName, setNewProjectName] = useState("");
@@ -52,7 +113,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [activeSection, setActiveSection] = useState("Project");
-  
+
   const mobile = useMobile();
 
   const metrics = useMemo(() => calculateMetrics(model), [model]);
@@ -75,7 +136,6 @@ export default function App() {
     setLoading(true);
     try {
       const data = await fetchProjects();
-      // Enrich projects with metrics from their latest feasibility runs
       const enrichedProjects = await enrichProjectsWithMetrics(data);
       setProjects(enrichedProjects);
       setStatus(`Loaded ${data.length} project(s)`);
@@ -86,7 +146,6 @@ export default function App() {
     }
   };
 
-  // Fetch feasibility data for projects and calculate metrics
   const enrichProjectsWithMetrics = async (projects: ProjectSummary[]): Promise<ProjectWithMetrics[]> => {
     const portfolioRuns = await fetchPortfolio();
     const runMap = new Map(portfolioRuns.map((run) => [Number(run.projectId), run]));
@@ -123,7 +182,6 @@ export default function App() {
         setModel(emptyModel(projectName, projectId));
       }
 
-      // Load archive
       const arch = await fetchArchive(projectId);
       setArchive(arch);
 
@@ -259,7 +317,6 @@ export default function App() {
           payload: run.payload as unknown as Record<string, unknown>,
         })
       );
-      // Refresh archive
       const arch = await fetchArchive(model.projectId);
       setArchive(arch);
       setStatus("Editing a new draft from the latest frozen feasibility");
@@ -293,12 +350,15 @@ export default function App() {
           onOpenNewProject={openNewProject}
           onDeleteProject={handleDeleteProject}
           onNewProjectNameChange={setNewProjectName}
-          onNavigateToCommercial={() => setScreen("commercial")}
-          onNavigateToSales={() => setScreen("sales")}
-          onNavigateToMarketing={() => setScreen("marketing")}
-          onNavigateToCollections={() => setScreen("collections")}
-          onNavigateToCollectionsForecast={() => setScreen("collectionsForecast")}
-          onNavigateToBudget={() => setScreen("budget")}
+          onNavigateToCommercial={canAccess(user.role, "commercial") ? () => setScreen("commercial") : undefined}
+          onNavigateToSales={canAccess(user.role, "sales") ? () => setScreen("sales") : undefined}
+          onNavigateToMarketing={canAccess(user.role, "marketing") ? () => setScreen("marketing") : undefined}
+          onNavigateToCollections={canAccess(user.role, "collections") ? () => setScreen("collections") : undefined}
+          onNavigateToCollectionsForecast={canAccess(user.role, "collectionsForecast") ? () => setScreen("collectionsForecast") : undefined}
+          onNavigateToBudget={canAccess(user.role, "budget") ? () => setScreen("budget") : undefined}
+          userRole={user.role}
+          userName={user.username}
+          onLogout={onLogout}
         />
       ) : (
         <Suspense fallback={<div className="loading-state">Loading screen...</div>}>
