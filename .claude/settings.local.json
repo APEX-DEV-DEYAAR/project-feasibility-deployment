@@ -13,7 +13,11 @@
       "Bash(PGPASSWORD=feasibility_pass \"C:/Program Files/PostgreSQL/16/bin/psql.exe\":*)",
       "Bash(ls:*)",
       "Bash(cmd:*)",
-      "Bash(netstat -ano | findstr :4000 | findstr LISTENING)"
+      "Bash(netstat -ano | findstr :4000 | findstr LISTENING)",
+      "Bash(find \"C:\\\\Users\\\\Shuja\\\\Desktop\\\\Project-Feasibility\" -type f \\\\\\( -name \"*.test.*\" -o -name \"*.spec.*\" \\\\\\) -not -path \"*/node_modules/*\" 2>/dev/null | head -20)",
+      "Bash(cd \"C:\\\\Users\\\\Shuja\\\\Desktop\\\\Project-Feasibility\" && npm ls vitest --workspace server 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\Shuja\\\\Desktop\\\\Project-Feasibility\" && npm run test --workspace server 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\Shuja\\\\Desktop\\\\Project-Feasibility\" && npm run test --workspace client 2>&1)"
     ]
   }
 }

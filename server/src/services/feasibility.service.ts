@@ -36,6 +36,11 @@ export class FeasibilityService {
     }
     const metrics = calculateMetrics(payload as unknown as Record<string, unknown>);
 
+    // Sync project name back to the projects table
+    if (payload.projectName) {
+      await this.projectRepo.updateName(projectId, payload.projectName as string);
+    }
+
     const latest = await this.feasibilityRepo.findLatestByProjectId(projectId);
 
     if (!latest) {
