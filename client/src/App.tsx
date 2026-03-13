@@ -53,7 +53,7 @@ const ROLE_SCREENS: Record<UserRole, Set<string>> = {
   collections: new Set(["collections", "collectionsForecast"]),
   finance: new Set(["projects", "feasibility", "portfolio", "budget"]),
   marketing : new Set(["marketing"]),
-  cfo : new Set(["budget"])
+  cfo : new Set(["projects", "feasibility", "portfolio", "commercial", "sales", "marketing", "collections", "collectionsForecast", "budget"])
 };
 
 function canAccess(role: UserRole, screen: string): boolean {

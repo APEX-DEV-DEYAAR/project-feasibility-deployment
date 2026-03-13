@@ -54,6 +54,13 @@ export class ProjectRepository {
     return result.rows[0];
   }
 
+  async updateName(id: number, name: string): Promise<void> {
+    await this.db.query(
+      `UPDATE projects SET name = ${this.db.placeholder(1)} WHERE id = ${this.db.placeholder(2)}`,
+      [name, id]
+    );
+  }
+
   async delete(id: number): Promise<boolean> {
     const { rowCount } = await this.db.query(
       `DELETE FROM projects WHERE id = ${this.db.placeholder(1)}`,

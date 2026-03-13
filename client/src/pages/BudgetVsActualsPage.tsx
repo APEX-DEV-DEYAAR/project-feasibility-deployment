@@ -251,6 +251,16 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
     [projects, selectedProjectId]
   );
 
+  // Track a reload counter so we can force re-fetch after navigation
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // Re-fetch when the projects list changes (e.g. after saving feasibility and navigating back)
+  useEffect(() => {
+    if (selectedProjectId) {
+      setReloadKey((k) => k + 1);
+    }
+  }, [projects]);
+
   useEffect(() => {
     if (!selectedProjectId) return;
 
@@ -273,7 +283,7 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
     };
 
     void loadData();
-  }, [selectedProjectId, currentYear]);
+  }, [selectedProjectId, currentYear, reloadKey]);
 
   const mergedData = useMemo(() => {
     const trackedRows = new Map(data.map((row) => [row.lineItem, row]));

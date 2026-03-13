@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import InputModal from "../components/InputModal";
 import PrintButton from "../components/PrintButton";
 import DeyaarLogo from "../components/DeyaarLogo";
@@ -9,6 +9,7 @@ import DonutChart from "../components/DonutChart";
 import CostBreakdown from "../components/CostBreakdown";
 import { PARTNER_COLORS } from "../constants";
 import { formatM, formatInt } from "../utils/formatters";
+import { calculateMetrics } from "../utils/calculations";
 import type { ClientModel, FeasibilityMetrics, ArchivedRun } from "../types";
 
 interface FeasibilityPageProps {
@@ -38,8 +39,8 @@ interface FeasibilityPageProps {
 }
 
 export default function FeasibilityPage({
-  model,
-  metrics,
+  model: currentModel,
+  metrics: currentMetrics,
   shareTotal,
   shareValid,
   activeSection,
@@ -63,18 +64,52 @@ export default function FeasibilityPage({
   onEditFrozen,
 }: FeasibilityPageProps) {
   const [showInputModal, setShowInputModal] = useState(false);
-  const isFrozen = model.status === "frozen";
-  const versionLabel = model.version
-    ? `v${model.version} · ${isFrozen ? "Frozen" : "Draft"}`
-    : model.runId
-      ? "Draft"
-      : "New";
+  const [viewingArchive, setViewingArchive] = useState<ArchivedRun | null>(null);
+
+  // Build a temporary ClientModel from the archived run for metrics calculation
+  const archiveModel = useMemo<ClientModel | null>(() => {
+    if (!viewingArchive) return null;
+    const p = viewingArchive.payload;
+    return {
+      runId: viewingArchive.originalRunId,
+      projectId: viewingArchive.projectId,
+      projectName: p.projectName,
+      input: Object.fromEntries(
+        Object.entries(p.input).map(([k, v]) => [k, v === null || v === undefined ? "" : String(v)])
+      ),
+      partners: (p.partners || []).map((pt) => ({
+        name: pt.name,
+        share: pt.share === null || pt.share === undefined ? "" : String(pt.share),
+      })),
+      version: viewingArchive.version,
+      status: "frozen" as const,
+    };
+  }, [viewingArchive]);
+
+  const archiveMetrics = useMemo<FeasibilityMetrics | null>(() => {
+    if (!archiveModel) return null;
+    return calculateMetrics(archiveModel);
+  }, [archiveModel]);
+
+  // Decide which data to display: archive view or current
+  const isArchiveView = viewingArchive !== null;
+  const model = archiveModel ?? currentModel;
+  const metrics = archiveMetrics ?? currentMetrics;
+
+  const isFrozen = isArchiveView ? true : model.status === "frozen";
+  const versionLabel = isArchiveView
+    ? `v${viewingArchive!.version} · Archived`
+    : model.version
+      ? `v${model.version} · ${model.status === "frozen" ? "Frozen" : "Draft"}`
+      : model.runId
+        ? "Draft"
+        : "New";
 
   const totalUnits = metrics.kpis.totalUnits || 1;
   const revenuePerUnit = metrics.kpis.totalRevenue * 1000000 / totalUnits;
   const costPerUnit = metrics.kpis.totalCost * 1000000 / totalUnits;
   const profitPerUnit = metrics.kpis.netProfit * 1000000 / totalUnits;
-  
+
   // NSA Split calculation
   const nsaTotal = metrics.area.nsaTotal || 1;
   const nsaRetailPct = (metrics.area.nsaRetail / nsaTotal) * 100;
@@ -98,42 +133,54 @@ export default function FeasibilityPage({
         </div>
         <div className="topbar-actions">
           <span className="topbar-tag">Feasibility</span>
-          
-          {!isMobile && !isFrozen && (
-            <button 
-              className="btn btn-terra" 
-              onClick={() => setShowInputModal(true)}
-              disabled={loading}
-            >
-              <span className="btn-text-desktop">✎ Edit Assumptions</span>
-              <span className="btn-text-mobile">✎ Edit</span>
-            </button>
-          )}
-          
-          {isMobile && (
-            <button className="mobile-menu-btn" onClick={onOpenSidebar} title="Open inputs">
-              ☰
-            </button>
-          )}
-          
-          <PrintButton projectName={model.projectName} />
-          
-          <button className="btn btn-ghost btn-icon" onClick={onBack} disabled={loading} title="Back">
-            ←
-          </button>
-          
-          {isFrozen ? (
-            <button className="btn btn-terra" onClick={onEditFrozen} disabled={loading}>
-              <span className="btn-text-desktop">✎ Edit</span>
-              <span className="btn-text-mobile">✎</span>
-            </button>
+
+          {isArchiveView ? (
+            <>
+              <PrintButton projectName={model.projectName} />
+              <button className="btn btn-terra" onClick={() => setViewingArchive(null)}>
+                <span className="btn-text-desktop">← Back to Current</span>
+                <span className="btn-text-mobile">← Current</span>
+              </button>
+            </>
           ) : (
             <>
-              {model.runId && (
-                <button className="btn btn-freeze" onClick={onFreeze} disabled={loading}>
-                  <span className="btn-text-desktop">❄ Freeze</span>
-                  <span className="btn-text-mobile">❄</span>
+              {!isMobile && !isFrozen && (
+                <button
+                  className="btn btn-terra"
+                  onClick={() => setShowInputModal(true)}
+                  disabled={loading}
+                >
+                  <span className="btn-text-desktop">✎ Edit Assumptions</span>
+                  <span className="btn-text-mobile">✎ Edit</span>
                 </button>
+              )}
+
+              {isMobile && (
+                <button className="mobile-menu-btn" onClick={onOpenSidebar} title="Open inputs">
+                  ☰
+                </button>
+              )}
+
+              <PrintButton projectName={model.projectName} />
+
+              <button className="btn btn-ghost btn-icon" onClick={onBack} disabled={loading} title="Back">
+                ←
+              </button>
+
+              {currentModel.status === "frozen" ? (
+                <button className="btn btn-terra" onClick={onEditFrozen} disabled={loading}>
+                  <span className="btn-text-desktop">✎ Edit</span>
+                  <span className="btn-text-mobile">✎</span>
+                </button>
+              ) : (
+                <>
+                  {currentModel.runId && (
+                    <button className="btn btn-freeze" onClick={onFreeze} disabled={loading}>
+                      <span className="btn-text-desktop">❄ Freeze</span>
+                      <span className="btn-text-mobile">❄</span>
+                    </button>
+                  )}
+                </>
               )}
             </>
           )}
@@ -141,9 +188,9 @@ export default function FeasibilityPage({
       </header>
 
       {/* Input Modal for Desktop */}
-      {!isMobile && (
+      {!isMobile && !isArchiveView && (
         <InputModal
-          model={model}
+          model={currentModel}
           isOpen={showInputModal}
           onClose={() => setShowInputModal(false)}
           onInputChange={onInputChange}
@@ -153,17 +200,17 @@ export default function FeasibilityPage({
           onSetProjectName={onSetProjectName}
           shareTotal={shareTotal}
           shareValid={shareValid}
-          isFrozen={isFrozen}
+          isFrozen={currentModel.status === "frozen"}
           onSave={onSave}
         />
       )}
 
       {/* Mobile Sidebar */}
-      {isMobile && (
+      {isMobile && !isArchiveView && (
         <MobileSidebar
           isOpen={sidebarOpen}
           onClose={onCloseSidebar}
-          model={model}
+          model={currentModel}
           activeSection={activeSection}
           onSectionChange={setActiveSection}
           onInputChange={onInputChange}
@@ -173,13 +220,19 @@ export default function FeasibilityPage({
           onSetProjectName={onSetProjectName}
           shareTotal={shareTotal}
           shareValid={shareValid}
-          isFrozen={isFrozen}
+          isFrozen={currentModel.status === "frozen"}
         />
       )}
 
-      {isFrozen && (
+      {isArchiveView ? (
         <div className="frozen-banner">
-          Frozen v{model.version} · Click "Edit" to create a new draft
+          Viewing archived version v{viewingArchive!.version} · Frozen on {viewingArchive!.frozenAt
+            ? new Date(viewingArchive!.frozenAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+            : "unknown date"}
+        </div>
+      ) : currentModel.status === "frozen" && (
+        <div className="frozen-banner">
+          Frozen v{currentModel.version} · Click "Edit" to create a new draft
         </div>
       )}
 
@@ -189,12 +242,14 @@ export default function FeasibilityPage({
           <div className="project-title-block">
             <h1>{model.projectName || "Untitled Project"}</h1>
             <div className="project-meta-row">
-              <span className={`status-badge ${model.status || "draft"}`}>
-                {model.status || "Draft"}
+              <span className={`status-badge ${isArchiveView ? "frozen" : (model.status || "draft")}`}>
+                {isArchiveView ? "Archived" : (model.status || "Draft")}
               </span>
               {model.version && <span className="version-badge">v{model.version}</span>}
               <span className="date-badge">
-                {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                {isArchiveView && viewingArchive?.frozenAt
+                  ? new Date(viewingArchive.frozenAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                  : new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
               </span>
             </div>
           </div>
@@ -518,11 +573,11 @@ export default function FeasibilityPage({
         )}
 
         {/* VERSION HISTORY */}
-        {archive.length > 0 && (
+        {archive.length > 0 && !isArchiveView && (
           <section className="archive-section">
             <div className="section-header-row">
               <h2>Version History</h2>
-              <span>Previously frozen versions</span>
+              <span>Click a version to view its full details</span>
             </div>
             <div className="table-container">
               <div className="tcard">
@@ -535,7 +590,13 @@ export default function FeasibilityPage({
                   <div className="th">Frozen Date</div>
                 </div>
                 {archive.map((a) => (
-                  <div key={a.id} className="trow trow-archive">
+                  <div
+                    key={a.id}
+                    className="trow trow-archive"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setViewingArchive(a)}
+                    title={`View v${a.version} details`}
+                  >
                     <div className="td"><strong>v{a.version}</strong></div>
                     <div className="td">AED {formatM(a.metrics.kpis.totalRevenue)}M</div>
                     <div className="td">AED {formatM(a.metrics.kpis.totalCost)}M</div>
