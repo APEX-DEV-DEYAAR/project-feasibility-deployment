@@ -87,6 +87,8 @@ function BridgeLane({
 }) {
   const chartWidth = 760;
   const chartHeight = 200;
+  const topPadding = 28;
+  const bottomPadding = 40;
   const barPadding = 16;
   const colWidth = chartWidth / segments.length;
   const barWidth = Math.min(colWidth - barPadding * 2, 80);
@@ -97,81 +99,83 @@ function BridgeLane({
       <div className="exec-bridge-lane-title">{title}</div>
       <svg
         className="exec-bridge-svg"
-        viewBox={`0 0 ${chartWidth} ${chartHeight + 40}`}
+        viewBox={`0 0 ${chartWidth} ${topPadding + chartHeight + bottomPadding}`}
         preserveAspectRatio="xMidYMid meet"
       >
-        {/* Zero baseline */}
-        <line
-          x1="0"
-          x2={chartWidth}
-          y1={baseline}
-          y2={baseline}
-          stroke="#E8DCC8"
-          strokeWidth="1"
-          strokeDasharray="4 3"
-        />
+        <g transform={`translate(0, ${topPadding})`}>
+          {/* Zero baseline */}
+          <line
+            x1="0"
+            x2={chartWidth}
+            y1={baseline}
+            y2={baseline}
+            stroke="#E8DCC8"
+            strokeWidth="1"
+            strokeDasharray="4 3"
+          />
 
-        {segments.map((segment, index) => {
-          const cx = index * colWidth + colWidth / 2;
-          const barX = cx - barWidth / 2;
-          const yTop = yScale(Math.max(segment.start, segment.end), min, max, chartHeight);
-          const yBottom = yScale(Math.min(segment.start, segment.end), min, max, chartHeight);
+          {segments.map((segment, index) => {
+            const cx = index * colWidth + colWidth / 2;
+            const barX = cx - barWidth / 2;
+            const yTop = yScale(Math.max(segment.start, segment.end), min, max, chartHeight);
+            const yBottom = yScale(Math.min(segment.start, segment.end), min, max, chartHeight);
 
-          // For total bar, always draw from 0
-          const rectY = segment.total
-            ? yScale(Math.max(0, segment.end), min, max, chartHeight)
-            : yTop;
-          const rectH = segment.total
-            ? Math.abs(yScale(0, min, max, chartHeight) - yScale(segment.end, min, max, chartHeight))
-            : Math.max(4, yBottom - yTop);
+            // For total bar, always draw from 0
+            const rectY = segment.total
+              ? yScale(Math.max(0, segment.end), min, max, chartHeight)
+              : yTop;
+            const rectH = segment.total
+              ? Math.abs(yScale(0, min, max, chartHeight) - yScale(segment.end, min, max, chartHeight))
+              : Math.max(4, yBottom - yTop);
 
-          // Connector line from previous segment's end to this segment's start
-          const showConnector = !segment.total && index > 0;
-          const prevCx = (index - 1) * colWidth + colWidth / 2;
+            // Connector line from previous segment's end to this segment's start
+            const showConnector = !segment.total && index > 0;
+            const prevCx = (index - 1) * colWidth + colWidth / 2;
 
-          return (
-            <g key={`${title}-${segment.label}`}>
-              {showConnector && (
-                <line
-                  x1={prevCx + barWidth / 2 + 2}
-                  x2={barX - 2}
-                  y1={yScale(segment.start, min, max, chartHeight)}
-                  y2={yScale(segment.start, min, max, chartHeight)}
-                  stroke="#B0B0B0"
-                  strokeWidth="1"
-                  strokeDasharray="3 2"
+            return (
+              <g key={`${title}-${segment.label}`}>
+                {showConnector && (
+                  <line
+                    x1={prevCx + barWidth / 2 + 2}
+                    x2={barX - 2}
+                    y1={yScale(segment.start, min, max, chartHeight)}
+                    y2={yScale(segment.start, min, max, chartHeight)}
+                    stroke="#B0B0B0"
+                    strokeWidth="1"
+                    strokeDasharray="3 2"
+                  />
+                )}
+                <rect
+                  x={barX}
+                  y={rectY}
+                  width={barWidth}
+                  height={Math.max(4, rectH)}
+                  rx="6"
+                  fill={KIND_COLORS[segment.kind]}
+                  opacity={segment.total ? 0.96 : 0.88}
                 />
-              )}
-              <rect
-                x={barX}
-                y={rectY}
-                width={barWidth}
-                height={Math.max(4, rectH)}
-                rx="6"
-                fill={KIND_COLORS[segment.kind]}
-                opacity={segment.total ? 0.96 : 0.88}
-              />
-              {/* Value label above/below bar */}
-              <text
-                x={cx}
-                y={rectY - 8}
-                textAnchor="middle"
-                className="exec-bridge-value"
-              >
-                {formatM(segment.value, 0)}M
-              </text>
-              {/* Category label at bottom */}
-              <text
-                x={cx}
-                y={chartHeight + 28}
-                textAnchor="middle"
-                className="exec-bridge-label"
-              >
-                {segment.label}
-              </text>
-            </g>
-          );
-        })}
+                {/* Value label above/below bar */}
+                <text
+                  x={cx}
+                  y={rectY - 10}
+                  textAnchor="middle"
+                  className="exec-bridge-value"
+                >
+                  {formatM(segment.value, 0)}M
+                </text>
+                {/* Category label at bottom */}
+                <text
+                  x={cx}
+                  y={chartHeight + 24}
+                  textAnchor="middle"
+                  className="exec-bridge-label"
+                >
+                  {segment.label}
+                </text>
+              </g>
+            );
+          })}
+        </g>
       </svg>
     </div>
   );
