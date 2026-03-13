@@ -8,11 +8,18 @@ interface MobileState {
   activeSection: string;
 }
 
+function getViewport() {
+  const width = typeof window !== "undefined" ? window.innerWidth : 1024;
+  return {
+    isMobile: width < 768,
+    isTablet: width >= 768 && width < 1024,
+    isDesktop: width >= 1024,
+  };
+}
+
 export function useMobile() {
   const [state, setState] = useState<MobileState>({
-    isMobile: false,
-    isTablet: false,
-    isDesktop: true,
+    ...getViewport(),
     sidebarOpen: false,
     activeSection: "Project",
   });

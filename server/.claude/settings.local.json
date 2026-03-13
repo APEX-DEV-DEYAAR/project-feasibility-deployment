@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd \"C:\\\\Users\\\\Shuja\\\\Desktop\\\\Project-Feasibility\\\\server\" && npm install oracledb)",
+      "Read(//c/Users/Shuja/Desktop/Project-Feasibility/**)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

@@ -4,15 +4,19 @@ import type { ProjectSummary } from "../types";
 interface SalesTeamPageProps {
   projects: ProjectSummary[];
   onBack: () => void;
+  onLogout?: () => void;
+  onRefresh?: () => void;
 }
 
-export default function SalesTeamPage({ projects, onBack }: SalesTeamPageProps) {
+export default function SalesTeamPage({ projects, onBack, onLogout, onRefresh }: SalesTeamPageProps) {
   return (
     <TeamCostPage
       teamCode="sales"
       teamName="Sales Team"
       projects={projects}
       onBack={onBack}
+      onLogout={onLogout}
+      onRefresh={onRefresh}
     />
   );
 }

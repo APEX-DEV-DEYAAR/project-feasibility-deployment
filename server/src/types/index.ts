@@ -1,9 +1,37 @@
 export interface AppConfig {
   port: number;
+  jwtSecret: string;
+  allowedOrigins: string[];
   db: {
     type: string;
     url: string | undefined;
+    oracle?: {
+      user: string;
+      password: string;
+      connectString: string;
+      walletDir: string;
+      walletPassword: string;
+    };
   };
+}
+
+// ---------- Auth ----------
+
+export type UserRole = "admin" | "sales" | "collections" | "commercial" | "finance" | "marketing" | "cfo";
+
+export interface AppUser {
+  id: number;
+  username: string;
+  passwordHash: string;
+  role: UserRole;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuthPayload {
+  userId: number;
+  username: string;
+  role: UserRole;
 }
 
 export interface QueryResult<T = Record<string, unknown>> {

@@ -1,5 +1,16 @@
 import type { QueryResult } from "../../types/index.js";
 
+export interface UpsertReturningOptions {
+  table: string;
+  conflictCols: string[];
+  insertCols: string[];
+  updateCols: string[];
+  values: unknown[];
+  selectExpr: string;
+  extraSetClauses?: string[];
+  startIdx?: number;
+}
+
 /**
  * Abstract database adapter.
  * Implement this for each supported database engine (Postgres, Oracle, etc.).
@@ -29,5 +40,124 @@ export abstract class BaseAdapter {
    */
   limitClause(count: number): string {
     return `FETCH FIRST ${count} ROWS ONLY`;
+  }
+
+  /** Cast a placeholder to JSON column type. PG: ::jsonb, Oracle: no-op */
+  jsonCast(placeholder: string): string {
+    return `${placeholder}::jsonb`;
+  }
+
+  /** Convert a date/timestamp column to text string. PG: ::text, Oracle: TO_CHAR */
+  dateToText(column: string): string {
+    return `${column}::text`;
+  }
+
+  /** Wrap an expression that should evaluate to a boolean value. PG: native bool, Oracle: CASE 0/1 */
+  boolExpr(expr: string): string {
+    return `(${expr})`;
+  }
+
+  /**
+   * Generate an UPSERT (INSERT ... ON CONFLICT ... DO UPDATE) statement.
+   * PG: INSERT ... ON CONFLICT ... DO UPDATE SET col = EXCLUDED.col
+   * Oracle: MERGE INTO ... USING dual ...
+   */
+  upsert(
+    table: string,
+    conflictCols: string[],
+    insertCols: string[],
+    updateCols: string[],
+    startIdx: number,
+    extraSetClauses?: string[]
+  ): string {
+    const placeholders = insertCols.map((_, i) => this.placeholder(startIdx + i)).join(", ");
+    const updates = updateCols.map((c) => `${c} = EXCLUDED.${c}`);
+    if (extraSetClauses) updates.push(...extraSetClauses);
+    return (
+      `INSERT INTO ${table} (${insertCols.join(", ")}) VALUES (${placeholders}) ` +
+      `ON CONFLICT (${conflictCols.join(", ")}) DO UPDATE SET ${updates.join(", ")}`
+    );
+  }
+
+  /**
+   * Generate an UPSERT-or-ignore (INSERT ... ON CONFLICT ... DO NOTHING) statement.
+   * PG: INSERT ... ON CONFLICT ... DO NOTHING
+   * Oracle: MERGE INTO ... WHEN NOT MATCHED THEN INSERT
+   */
+  upsertOrIgnore(
+    table: string,
+    conflictCols: string[],
+    insertCols: string[],
+    startIdx: number
+  ): string {
+    const placeholders = insertCols.map((_, i) => this.placeholder(startIdx + i)).join(", ");
+    return (
+      `INSERT INTO ${table} (${insertCols.join(", ")}) VALUES (${placeholders}) ` +
+      `ON CONFLICT (${conflictCols.join(", ")}) DO NOTHING`
+    );
+  }
+
+  /**
+   * Execute an INSERT and return the inserted row.
+   * PG: appends RETURNING clause
+   * Oracle: uses RETURNING id INTO + separate SELECT
+   *
+   * @param valueExprs  Optional custom value expressions (e.g. with jsonCast).
+   *                    If omitted, plain placeholders are generated.
+   */
+  async insertReturning<T = Record<string, unknown>>(
+    table: string,
+    insertCols: string[],
+    values: unknown[],
+    returningExpr: string,
+    startIdx: number = 1,
+    valueExprs?: string[]
+  ): Promise<QueryResult<T>> {
+    const placeholders = valueExprs
+      ? valueExprs.join(", ")
+      : insertCols.map((_, i) => this.placeholder(startIdx + i)).join(", ");
+    const sql =
+      `INSERT INTO ${table} (${insertCols.join(", ")}) VALUES (${placeholders}) ` +
+      `RETURNING ${returningExpr}`;
+    return this.query<T>(sql, values);
+  }
+
+  /**
+   * Execute an UPSERT and return the resulting row.
+   * PG: appends RETURNING to the ON CONFLICT statement
+   * Oracle: executes MERGE then SELECT by conflict key
+   */
+  async upsertReturning<T = Record<string, unknown>>(
+    opts: UpsertReturningOptions
+  ): Promise<QueryResult<T>> {
+    const sql = this.upsert(
+      opts.table,
+      opts.conflictCols,
+      opts.insertCols,
+      opts.updateCols,
+      opts.startIdx ?? 1,
+      opts.extraSetClauses
+    );
+    return this.query<T>(`${sql} RETURNING ${opts.selectExpr}`, opts.values);
+  }
+
+  /**
+   * Generate a DELETE with JOIN.
+   * PG: DELETE ... USING
+   * Oracle: DELETE ... WHERE EXISTS
+   */
+  deleteWithJoin(
+    targetTable: string,
+    targetAlias: string,
+    joinTable: string,
+    joinAlias: string,
+    joinCondition: string,
+    whereCondition: string
+  ): string {
+    return (
+      `DELETE FROM ${targetTable} ${targetAlias} ` +
+      `USING ${joinTable} ${joinAlias} ` +
+      `WHERE ${joinCondition} AND ${whereCondition}`
+    );
   }
 }

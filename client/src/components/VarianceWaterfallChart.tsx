@@ -130,11 +130,12 @@ function CustomTooltip({
   );
 }
 
-export default function VarianceWaterfallChart({ 
-  title, 
-  subtitle, 
-  data 
+export default function VarianceWaterfallChart({
+  title,
+  subtitle,
+  data
 }: VarianceWaterfallChartProps) {
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
   const processedData = useMemo(() => processData(data), [data]);
   
   // Separate by section for visual grouping
@@ -237,7 +238,7 @@ export default function VarianceWaterfallChart({
           <BarChart
             data={processedData}
             layout="vertical"
-            margin={{ top: 30, right: 80, bottom: 30, left: 180 }}
+            margin={isMobile ? { top: 20, right: 60, bottom: 20, left: 120 } : { top: 30, right: 80, bottom: 30, left: 180 }}
             barCategoryGap="25%"
           >
             <CartesianGrid 
@@ -270,7 +271,7 @@ export default function VarianceWaterfallChart({
             <YAxis
               type="category"
               dataKey="label"
-              width={170}
+              width={isMobile ? 110 : 170}
               axisLine={false}
               tickLine={false}
               tick={{ 

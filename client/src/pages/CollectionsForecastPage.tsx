@@ -23,6 +23,9 @@ import { formatNumber } from "../utils/formatters";
 interface CollectionsForecastPageProps {
   projects: ProjectSummary[];
   onBack: () => void;
+  onLogout?: () => void;
+  onRefresh?: () => void;
+  onNavigateToCollections?: () => void;
 }
 
 function todayIso(): string {
@@ -35,7 +38,7 @@ const RISK_COLORS: Record<string, { bg: string; color: string }> = {
   High: { bg: "#FDECEA", color: "#B71C1C" },
 };
 
-export default function CollectionsForecastPage({ projects, onBack }: CollectionsForecastPageProps) {
+export default function CollectionsForecastPage({ projects, onBack, onLogout, onRefresh, onNavigateToCollections }: CollectionsForecastPageProps) {
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [rows, setRows] = useState<CollectionsInstallment[]>([]);
   const [dashboard, setDashboard] = useState<CollectionsForecastDashboard | null>(null);
@@ -90,7 +93,27 @@ export default function CollectionsForecastPage({ projects, onBack }: Collection
           <div className="topbar-title">CFO Collections Dashboard</div>
         </div>
         <div className="topbar-actions">
-          <button className="btn btn-ghost" onClick={onBack}>&larr; Back to Portfolio</button>
+          {onLogout || onRefresh ? (
+            <>
+              {onNavigateToCollections && (
+                <button className="btn btn-ghost" onClick={onNavigateToCollections}>
+                  Collections Tracking
+                </button>
+              )}
+              {onRefresh && (
+                <button className="btn btn-ghost btn-icon" onClick={onRefresh} disabled={loading} title="Refresh">
+                  <span style={{ fontSize: "16px" }}>&#x21bb;</span>
+                </button>
+              )}
+              {onLogout && (
+                <button className="btn btn-ghost" onClick={onLogout} title="Sign out" style={{ color: "#f87171" }}>
+                  Sign Out
+                </button>
+              )}
+            </>
+          ) : (
+            <button className="btn btn-ghost btn-back" onClick={onBack}><span className="back-arrow">&larr;</span><span className="back-text"> Back to Portfolio</span></button>
+          )}
         </div>
       </header>
 

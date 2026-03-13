@@ -6,3 +6,6 @@ server/dist/
 *.tsbuildinfo
 server/.env
 .env
+cloudflared.exe
+tunnel.log
+client/.env.production

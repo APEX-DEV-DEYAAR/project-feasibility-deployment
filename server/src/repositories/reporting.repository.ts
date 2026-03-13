@@ -13,6 +13,40 @@ interface SnapshotRecord {
   metrics: FeasibilityMetrics;
 }
 
+const CURRENT_COLS = [
+  "run_id", "project_id", "version", "status", "created_at", "updated_at", "frozen_at",
+  "project_name",
+  "land_area", "land_cost", "gfa", "nsa_resi", "nsa_retail", "bua_resi", "bua_retail", "units_resi", "units_retail",
+  "resi_psf", "retail_psf", "cc_psf", "soft_pct", "stat_pct", "cont_pct", "dev_mgmt_pct", "cof_pct", "sales_exp_pct", "mkt_pct",
+  "area_land_area", "area_gfa", "area_nsa_resi", "area_nsa_retail", "area_nsa_total", "area_bua_resi", "area_bua_retail", "area_bua_total",
+  "area_units_resi", "area_units_retail", "area_units_total", "area_efficiency_pct",
+  "revenue_resi", "revenue_retail", "revenue_total",
+  "cost_land_resi", "cost_land_retail", "cost_land", "cost_cc_resi", "cost_cc_retail", "cost_construction", "cost_soft_resi", "cost_soft_retail", "cost_soft",
+  "cost_stat_resi", "cost_stat_retail", "cost_statutory", "cost_cont_resi", "cost_cont_retail", "cost_contingency",
+  "cost_dev_resi", "cost_dev_retail", "cost_dev_mgmt", "cost_cof_resi", "cost_cof_retail", "cost_cof",
+  "cost_se_resi", "cost_se_retail", "cost_sales_expense", "cost_mk_resi", "cost_mk_retail", "cost_marketing",
+  "cost_resi", "cost_retail", "cost_total",
+  "profit_np_resi", "profit_np_retail", "profit_net_profit", "profit_margin_resi", "profit_margin_retail", "profit_margin_pct",
+  "kpi_total_revenue", "kpi_total_cost", "kpi_net_profit", "kpi_margin_pct", "kpi_total_units",
+] as const;
+
+const ARCHIVE_COLS = [
+  "archive_id", "original_run_id", "project_id", "version", "frozen_at", "archived_at",
+  "project_name",
+  "land_area", "land_cost", "gfa", "nsa_resi", "nsa_retail", "bua_resi", "bua_retail", "units_resi", "units_retail",
+  "resi_psf", "retail_psf", "cc_psf", "soft_pct", "stat_pct", "cont_pct", "dev_mgmt_pct", "cof_pct", "sales_exp_pct", "mkt_pct",
+  "area_land_area", "area_gfa", "area_nsa_resi", "area_nsa_retail", "area_nsa_total", "area_bua_resi", "area_bua_retail", "area_bua_total",
+  "area_units_resi", "area_units_retail", "area_units_total", "area_efficiency_pct",
+  "revenue_resi", "revenue_retail", "revenue_total",
+  "cost_land_resi", "cost_land_retail", "cost_land", "cost_cc_resi", "cost_cc_retail", "cost_construction", "cost_soft_resi", "cost_soft_retail", "cost_soft",
+  "cost_stat_resi", "cost_stat_retail", "cost_statutory", "cost_cont_resi", "cost_cont_retail", "cost_contingency",
+  "cost_dev_resi", "cost_dev_retail", "cost_dev_mgmt", "cost_cof_resi", "cost_cof_retail", "cost_cof",
+  "cost_se_resi", "cost_se_retail", "cost_sales_expense", "cost_mk_resi", "cost_mk_retail", "cost_marketing",
+  "cost_resi", "cost_retail", "cost_total",
+  "profit_np_resi", "profit_np_retail", "profit_net_profit", "profit_margin_resi", "profit_margin_retail", "profit_margin_pct",
+  "kpi_total_revenue", "kpi_total_cost", "kpi_net_profit", "kpi_margin_pct", "kpi_total_units",
+] as const;
+
 export class ReportingRepository {
   constructor(private readonly db: BaseAdapter) {}
 
@@ -52,112 +86,10 @@ export class ReportingRepository {
       ...this.snapshotValues(snapshot),
     ];
 
-    await this.db.query(
-      `INSERT INTO feasibility_reporting_current (
-         run_id, project_id, version, status, created_at, updated_at, frozen_at,
-         project_name,
-         land_area, land_cost, gfa, nsa_resi, nsa_retail, bua_resi, bua_retail, units_resi, units_retail,
-         resi_psf, retail_psf, cc_psf, soft_pct, stat_pct, cont_pct, dev_mgmt_pct, cof_pct, sales_exp_pct, mkt_pct,
-         area_land_area, area_gfa, area_nsa_resi, area_nsa_retail, area_nsa_total, area_bua_resi, area_bua_retail, area_bua_total,
-         area_units_resi, area_units_retail, area_units_total, area_efficiency_pct,
-         revenue_resi, revenue_retail, revenue_total,
-         cost_land_resi, cost_land_retail, cost_land, cost_cc_resi, cost_cc_retail, cost_construction, cost_soft_resi, cost_soft_retail, cost_soft,
-         cost_stat_resi, cost_stat_retail, cost_statutory, cost_cont_resi, cost_cont_retail, cost_contingency,
-         cost_dev_resi, cost_dev_retail, cost_dev_mgmt, cost_cof_resi, cost_cof_retail, cost_cof,
-         cost_se_resi, cost_se_retail, cost_sales_expense, cost_mk_resi, cost_mk_retail, cost_marketing,
-         cost_resi, cost_retail, cost_total,
-         profit_np_resi, profit_np_retail, profit_net_profit, profit_margin_resi, profit_margin_retail, profit_margin_pct,
-         kpi_total_revenue, kpi_total_cost, kpi_net_profit, kpi_margin_pct, kpi_total_units
-       ) VALUES (
-         ${this.db.placeholder(1)}, ${this.db.placeholder(2)}, ${this.db.placeholder(3)}, ${this.db.placeholder(4)},
-         ${this.db.placeholder(5)}, ${this.db.placeholder(6)}, ${this.db.placeholder(7)},
-         ${this.paramList(8, 83)}
-       )
-       ON CONFLICT (run_id) DO UPDATE SET
-         project_id = EXCLUDED.project_id,
-         version = EXCLUDED.version,
-         status = EXCLUDED.status,
-         created_at = EXCLUDED.created_at,
-         updated_at = EXCLUDED.updated_at,
-         frozen_at = EXCLUDED.frozen_at,
-         project_name = EXCLUDED.project_name,
-         land_area = EXCLUDED.land_area,
-         land_cost = EXCLUDED.land_cost,
-         gfa = EXCLUDED.gfa,
-         nsa_resi = EXCLUDED.nsa_resi,
-         nsa_retail = EXCLUDED.nsa_retail,
-         bua_resi = EXCLUDED.bua_resi,
-         bua_retail = EXCLUDED.bua_retail,
-         units_resi = EXCLUDED.units_resi,
-         units_retail = EXCLUDED.units_retail,
-         resi_psf = EXCLUDED.resi_psf,
-         retail_psf = EXCLUDED.retail_psf,
-         cc_psf = EXCLUDED.cc_psf,
-         soft_pct = EXCLUDED.soft_pct,
-         stat_pct = EXCLUDED.stat_pct,
-         cont_pct = EXCLUDED.cont_pct,
-         dev_mgmt_pct = EXCLUDED.dev_mgmt_pct,
-         cof_pct = EXCLUDED.cof_pct,
-         sales_exp_pct = EXCLUDED.sales_exp_pct,
-         mkt_pct = EXCLUDED.mkt_pct,
-         area_land_area = EXCLUDED.area_land_area,
-         area_gfa = EXCLUDED.area_gfa,
-         area_nsa_resi = EXCLUDED.area_nsa_resi,
-         area_nsa_retail = EXCLUDED.area_nsa_retail,
-         area_nsa_total = EXCLUDED.area_nsa_total,
-         area_bua_resi = EXCLUDED.area_bua_resi,
-         area_bua_retail = EXCLUDED.area_bua_retail,
-         area_bua_total = EXCLUDED.area_bua_total,
-         area_units_resi = EXCLUDED.area_units_resi,
-         area_units_retail = EXCLUDED.area_units_retail,
-         area_units_total = EXCLUDED.area_units_total,
-         area_efficiency_pct = EXCLUDED.area_efficiency_pct,
-         revenue_resi = EXCLUDED.revenue_resi,
-         revenue_retail = EXCLUDED.revenue_retail,
-         revenue_total = EXCLUDED.revenue_total,
-         cost_land_resi = EXCLUDED.cost_land_resi,
-         cost_land_retail = EXCLUDED.cost_land_retail,
-         cost_land = EXCLUDED.cost_land,
-         cost_cc_resi = EXCLUDED.cost_cc_resi,
-         cost_cc_retail = EXCLUDED.cost_cc_retail,
-         cost_construction = EXCLUDED.cost_construction,
-         cost_soft_resi = EXCLUDED.cost_soft_resi,
-         cost_soft_retail = EXCLUDED.cost_soft_retail,
-         cost_soft = EXCLUDED.cost_soft,
-         cost_stat_resi = EXCLUDED.cost_stat_resi,
-         cost_stat_retail = EXCLUDED.cost_stat_retail,
-         cost_statutory = EXCLUDED.cost_statutory,
-         cost_cont_resi = EXCLUDED.cost_cont_resi,
-         cost_cont_retail = EXCLUDED.cost_cont_retail,
-         cost_contingency = EXCLUDED.cost_contingency,
-         cost_dev_resi = EXCLUDED.cost_dev_resi,
-         cost_dev_retail = EXCLUDED.cost_dev_retail,
-         cost_dev_mgmt = EXCLUDED.cost_dev_mgmt,
-         cost_cof_resi = EXCLUDED.cost_cof_resi,
-         cost_cof_retail = EXCLUDED.cost_cof_retail,
-         cost_cof = EXCLUDED.cost_cof,
-         cost_se_resi = EXCLUDED.cost_se_resi,
-         cost_se_retail = EXCLUDED.cost_se_retail,
-         cost_sales_expense = EXCLUDED.cost_sales_expense,
-         cost_mk_resi = EXCLUDED.cost_mk_resi,
-         cost_mk_retail = EXCLUDED.cost_mk_retail,
-         cost_marketing = EXCLUDED.cost_marketing,
-         cost_resi = EXCLUDED.cost_resi,
-         cost_retail = EXCLUDED.cost_retail,
-         cost_total = EXCLUDED.cost_total,
-         profit_np_resi = EXCLUDED.profit_np_resi,
-         profit_np_retail = EXCLUDED.profit_np_retail,
-         profit_net_profit = EXCLUDED.profit_net_profit,
-         profit_margin_resi = EXCLUDED.profit_margin_resi,
-         profit_margin_retail = EXCLUDED.profit_margin_retail,
-         profit_margin_pct = EXCLUDED.profit_margin_pct,
-         kpi_total_revenue = EXCLUDED.kpi_total_revenue,
-         kpi_total_cost = EXCLUDED.kpi_total_cost,
-         kpi_net_profit = EXCLUDED.kpi_net_profit,
-         kpi_margin_pct = EXCLUDED.kpi_margin_pct,
-         kpi_total_units = EXCLUDED.kpi_total_units`,
-      params
-    );
+    const cols = [...CURRENT_COLS];
+    const updateCols = cols.filter((c) => c !== "run_id");
+    const sql = this.db.upsert("feasibility_reporting_current", ["run_id"], cols, updateCols, 1);
+    await this.db.query(sql, params);
 
     await this.replaceCurrentPartners(run.id, this.extractPartners(run.metrics));
   }
@@ -181,30 +113,9 @@ export class ReportingRepository {
       ...this.snapshotValues(snapshot),
     ];
 
-    await this.db.query(
-      `INSERT INTO feasibility_reporting_archive (
-         archive_id, original_run_id, project_id, version, frozen_at, archived_at,
-         project_name,
-         land_area, land_cost, gfa, nsa_resi, nsa_retail, bua_resi, bua_retail, units_resi, units_retail,
-         resi_psf, retail_psf, cc_psf, soft_pct, stat_pct, cont_pct, dev_mgmt_pct, cof_pct, sales_exp_pct, mkt_pct,
-         area_land_area, area_gfa, area_nsa_resi, area_nsa_retail, area_nsa_total, area_bua_resi, area_bua_retail, area_bua_total,
-         area_units_resi, area_units_retail, area_units_total, area_efficiency_pct,
-         revenue_resi, revenue_retail, revenue_total,
-         cost_land_resi, cost_land_retail, cost_land, cost_cc_resi, cost_cc_retail, cost_construction, cost_soft_resi, cost_soft_retail, cost_soft,
-         cost_stat_resi, cost_stat_retail, cost_statutory, cost_cont_resi, cost_cont_retail, cost_contingency,
-         cost_dev_resi, cost_dev_retail, cost_dev_mgmt, cost_cof_resi, cost_cof_retail, cost_cof,
-         cost_se_resi, cost_se_retail, cost_sales_expense, cost_mk_resi, cost_mk_retail, cost_marketing,
-         cost_resi, cost_retail, cost_total,
-         profit_np_resi, profit_np_retail, profit_net_profit, profit_margin_resi, profit_margin_retail, profit_margin_pct,
-         kpi_total_revenue, kpi_total_cost, kpi_net_profit, kpi_margin_pct, kpi_total_units
-       ) VALUES (
-         ${this.db.placeholder(1)}, ${this.db.placeholder(2)}, ${this.db.placeholder(3)}, ${this.db.placeholder(4)},
-         ${this.db.placeholder(5)}, ${this.db.placeholder(6)},
-         ${this.paramList(7, 82)}
-       )
-       ON CONFLICT (archive_id) DO NOTHING`,
-      params
-    );
+    const cols = [...ARCHIVE_COLS];
+    const sql = this.db.upsertOrIgnore("feasibility_reporting_archive", ["archive_id"], cols, 1);
+    await this.db.query(sql, params);
 
     await this.replaceArchivePartners(archive.id, this.extractPartners(archive.metrics));
   }
@@ -225,12 +136,25 @@ export class ReportingRepository {
     await this.insertPartners("feasibility_reporting_archive_partners", "archive_id", archiveId, partners);
   }
 
+  private static readonly ALLOWED_PARTNER_TABLES = new Set([
+    "feasibility_reporting_current_partners",
+    "feasibility_reporting_archive_partners",
+  ]);
+  private static readonly ALLOWED_OWNER_COLUMNS = new Set(["run_id", "archive_id"]);
+
   private async insertPartners(
-    tableName: string,
+    tableName: "feasibility_reporting_current_partners" | "feasibility_reporting_archive_partners",
     ownerColumn: "run_id" | "archive_id",
     ownerId: number,
     partners: FeasibilityReportingPartner[]
   ): Promise<void> {
+    if (!ReportingRepository.ALLOWED_PARTNER_TABLES.has(tableName)) {
+      throw new Error(`Invalid table: ${tableName}`);
+    }
+    if (!ReportingRepository.ALLOWED_OWNER_COLUMNS.has(ownerColumn)) {
+      throw new Error(`Invalid column: ${ownerColumn}`);
+    }
+
     for (let index = 0; index < partners.length; index += 1) {
       const partner = partners[index];
       await this.db.query(
@@ -338,9 +262,5 @@ export class ReportingRepository {
       metrics.kpis.marginPct,
       metrics.kpis.totalUnits,
     ];
-  }
-
-  private paramList(start: number, end: number): string {
-    return Array.from({ length: end - start + 1 }, (_, index) => this.db.placeholder(start + index)).join(", ");
   }
 }

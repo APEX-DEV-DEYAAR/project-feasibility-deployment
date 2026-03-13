@@ -7,6 +7,10 @@ import type { QueryResult } from "../../types/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Return NUMERIC and BIGINT as JavaScript numbers instead of strings
+pg.types.setTypeParser(20, (val: string) => parseInt(val, 10));    // BIGINT (int8)
+pg.types.setTypeParser(1700, (val: string) => parseFloat(val));    // NUMERIC / DECIMAL
+
 export class PostgresAdapter extends BaseAdapter {
   private pool: pg.Pool;
 
@@ -41,6 +45,8 @@ export class PostgresAdapter extends BaseAdapter {
       "009_collections_forecast_source_fields.sql",
       "010_collections_forecast_lookups.sql",
       "011_collections_forecast_formula_inputs.sql",
+      "012_users.sql",
+      "013_audit_log.sql",
     ];
 
     for (const file of migrationFiles) {
