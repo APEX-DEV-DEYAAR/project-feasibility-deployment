@@ -23,7 +23,7 @@ import { CollectionsForecastController } from "./controllers/collections-forecas
 import { createApp } from "./app.js";
 
 async function start(): Promise<void> {
-  const db = createDatabaseAdapter(config);
+  const db = await createDatabaseAdapter(config);
   await db.initialize();
 
   const projectRepo = new ProjectRepository(db);

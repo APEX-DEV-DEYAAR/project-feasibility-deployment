@@ -2036,6 +2036,40 @@
   margin-bottom: 12px;
 }
 
+.exec-bridge-svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.exec-bridge-value {
+  font-size: 12px;
+  font-weight: 700;
+  fill: #3D2914;
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+
+.exec-bridge-label {
+  font-size: 11px;
+  fill: #7A6A56;
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+
+.exec-bridge-legend {
+  display: flex;
+  gap: 20px;
+  margin-top: 12px;
+  padding: 0 4px;
+}
+
+.exec-bridge-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #7A6A56;
+}
+
 /* ============================================
    VARIANCE WATERFALL CHART - NEW EXECUTIVE CHART
    ============================================ */
@@ -2445,5 +2479,105 @@
   
   .variance-legend {
     flex-wrap: wrap;
+  }
+
+  .variance-waterfall-panel {
+    padding: 16px;
+  }
+
+  .variance-chart-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 12px;
+    min-height: 400px;
+  }
+
+  .variance-chart-container .recharts-wrapper {
+    min-width: 600px;
+  }
+
+  .bva-chart-fullwidth {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .exec-bridge-panel {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .exec-bridge-panel .recharts-wrapper {
+    min-width: 500px;
+  }
+
+  .variance-summary-card {
+    padding: 14px 16px;
+  }
+
+  .bva-activity-bar {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .activity-items {
+    flex-wrap: wrap;
+  }
+
+  .commercial-team-page {
+    padding: 16px;
+  }
+
+  .commercial-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .select-field {
+    min-width: unset;
+    width: 100%;
+  }
+
+  .excel-actions-bar {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .excel-buttons {
+    flex-direction: column;
+  }
+
+  .control-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .control-actions .btn {
+    width: 100%;
+  }
+
+  .bva-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .exec-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+  .commercial-team-page {
+    padding: 12px;
+  }
+
+  .exec-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bva-header-left h1 {
+    font-size: 20px;
   }
 }

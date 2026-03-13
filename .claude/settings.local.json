@@ -12,7 +12,8 @@
       "Bash(\"C:/Program:*)",
       "Bash(PGPASSWORD=feasibility_pass \"C:/Program Files/PostgreSQL/16/bin/psql.exe\":*)",
       "Bash(ls:*)",
-      "Bash(cmd:*)"
+      "Bash(cmd:*)",
+      "Bash(netstat -ano | findstr :4000 | findstr LISTENING)"
     ]
   }
 }

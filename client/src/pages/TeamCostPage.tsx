@@ -20,12 +20,20 @@ import type {
 } from "../types";
 import { formatNumber } from "../utils/formatters";
 
+interface NavButton {
+  label: string;
+  onClick: () => void;
+}
+
 interface TeamCostPageProps {
   teamCode: TeamCode;
   teamName: string;
   projects: ProjectSummary[];
   showCollections?: boolean;
   onBack: () => void;
+  onLogout?: () => void;
+  onRefresh?: () => void;
+  extraNavButtons?: NavButton[];
 }
 
 const MONTH_NAMES = [
@@ -67,7 +75,7 @@ function toAmount(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-export default function TeamCostPage({ teamCode, teamName, projects, showCollections = false, onBack }: TeamCostPageProps) {
+export default function TeamCostPage({ teamCode, teamName, projects, showCollections = false, onBack, onLogout, onRefresh, extraNavButtons }: TeamCostPageProps) {
   const currentYear = new Date().getFullYear();
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [categories, setCategories] = useState<CostCategory[]>([]);
@@ -643,7 +651,27 @@ export default function TeamCostPage({ teamCode, teamName, projects, showCollect
           <div className="topbar-title">{teamName}</div>
         </div>
         <div className="topbar-actions">
-          <button className="btn btn-ghost" onClick={onBack}>&larr; Back to Portfolio</button>
+          {onLogout || onRefresh ? (
+            <>
+              {extraNavButtons?.map((btn) => (
+                <button key={btn.label} className="btn btn-ghost" onClick={btn.onClick}>
+                  {btn.label}
+                </button>
+              ))}
+              {onRefresh && (
+                <button className="btn btn-ghost btn-icon" onClick={onRefresh} disabled={loading} title="Refresh">
+                  <span style={{ fontSize: "16px" }}>&#x21bb;</span>
+                </button>
+              )}
+              {onLogout && (
+                <button className="btn btn-ghost" onClick={onLogout} title="Sign out" style={{ color: "#f87171" }}>
+                  Sign Out
+                </button>
+              )}
+            </>
+          ) : (
+            <button className="btn btn-ghost btn-back" onClick={onBack}><span className="back-arrow">&larr;</span><span className="back-text"> Back to Portfolio</span></button>
+          )}
         </div>
       </header>
 

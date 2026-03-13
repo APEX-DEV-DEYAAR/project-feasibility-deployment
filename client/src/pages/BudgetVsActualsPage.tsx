@@ -12,6 +12,8 @@ type TabType = 'breakdown' | 'variance' | 'bridge';
 interface BudgetVsActualsPageProps {
   projects: ProjectSummary[];
   onBack: () => void;
+  onLogout?: () => void;
+  onRefresh?: () => void;
 }
 
 interface BudgetLineItemDef {
@@ -234,7 +236,7 @@ function CapsuleTabs({
   );
 }
 
-export default function BudgetVsActualsPage({ projects, onBack }: BudgetVsActualsPageProps) {
+export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefresh }: BudgetVsActualsPageProps) {
   const currentYear = new Date().getFullYear();
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('breakdown');
@@ -446,7 +448,22 @@ export default function BudgetVsActualsPage({ projects, onBack }: BudgetVsActual
           <div className="topbar-title">Budget vs Actuals</div>
         </div>
         <div className="topbar-actions">
-          <button className="btn btn-ghost" onClick={onBack}>← Back to Portfolio</button>
+          {onLogout || onRefresh ? (
+            <>
+              {onRefresh && (
+                <button className="btn btn-ghost btn-icon" onClick={onRefresh} title="Refresh">
+                  <span style={{ fontSize: "16px" }}>&#x21bb;</span>
+                </button>
+              )}
+              {onLogout && (
+                <button className="btn btn-ghost" onClick={onLogout} title="Sign out" style={{ color: "#f87171" }}>
+                  Sign Out
+                </button>
+              )}
+            </>
+          ) : (
+            <button className="btn btn-ghost btn-back" onClick={onBack}><span className="back-arrow">←</span><span className="back-text"> Back to Portfolio</span></button>
+          )}
         </div>
       </header>
 

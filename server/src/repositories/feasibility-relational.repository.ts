@@ -192,19 +192,19 @@ export class FeasibilityRelationalRepository {
       (metrics.jvShares ?? []).map((partner) => [partner.name, partner.profitShare])
     );
 
+    const cols = [ownerColumn, "partner_order", "partner_name", "share_pct", "profit_share"];
+    const updateCols = ["partner_name", "share_pct", "profit_share"];
+
     for (let index = 0; index < partners.length; index += 1) {
       const partner = partners[index];
-      await this.db.query(
-        `INSERT INTO ${tableName} (${ownerColumn}, partner_order, partner_name, share_pct, profit_share)
-         VALUES (${this.db.placeholder(1)}, ${this.db.placeholder(2)}, ${this.db.placeholder(3)}, ${this.db.placeholder(4)}, ${this.db.placeholder(5)})`,
-        [
-          ownerId,
-          index + 1,
-          partner.name,
-          partner.share,
-          profitShareByName.get(partner.name) ?? 0,
-        ]
-      );
+      const sql = this.db.upsert(tableName, [ownerColumn, "partner_order"], cols, updateCols, 1);
+      await this.db.query(sql, [
+        ownerId,
+        index + 1,
+        partner.name,
+        partner.share,
+        profitShareByName.get(partner.name) ?? 0,
+      ]);
     }
   }
 

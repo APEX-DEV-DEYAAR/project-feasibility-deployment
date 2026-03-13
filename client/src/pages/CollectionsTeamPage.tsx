@@ -4,9 +4,12 @@ import type { ProjectSummary } from "../types";
 interface CollectionsTeamPageProps {
   projects: ProjectSummary[];
   onBack: () => void;
+  onLogout?: () => void;
+  onRefresh?: () => void;
+  onNavigateToForecast?: () => void;
 }
 
-export default function CollectionsTeamPage({ projects, onBack }: CollectionsTeamPageProps) {
+export default function CollectionsTeamPage({ projects, onBack, onLogout, onRefresh, onNavigateToForecast }: CollectionsTeamPageProps) {
   return (
     <TeamCostPage
       teamCode="collections"
@@ -14,6 +17,11 @@ export default function CollectionsTeamPage({ projects, onBack }: CollectionsTea
       projects={projects}
       showCollections
       onBack={onBack}
+      onLogout={onLogout}
+      onRefresh={onRefresh}
+      extraNavButtons={onNavigateToForecast ? [
+        { label: "Collections Forecast", onClick: onNavigateToForecast },
+      ] : undefined}
     />
   );
 }

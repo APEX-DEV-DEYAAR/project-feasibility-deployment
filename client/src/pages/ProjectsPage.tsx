@@ -6,6 +6,7 @@ import { formatM, formatInt } from "../utils/formatters";
 import { registerUser, fetchUsers, resetUserPassword } from "../api/auth.api";
 import type { UserListItem } from "../api/auth.api";
 import type { ProjectSummary, FeasibilityMetrics, UserRole } from "../types";
+import { useMobile } from "../hooks/useMobile";
 
 const AVAILABLE_ROLES: { value: UserRole; label: string }[] = [
   { value: "admin", label: "Admin" },
@@ -13,6 +14,8 @@ const AVAILABLE_ROLES: { value: UserRole; label: string }[] = [
   { value: "sales", label: "Sales" },
   { value: "collections", label: "Collections" },
   { value: "finance", label: "Finance" },
+  { value: "marketing", label: "Marketing" },
+  { value: "cfo", label: "CFO" },
 ];
 
 // Extended project type with metrics for the feasibility portfolio view
@@ -64,6 +67,8 @@ export default function ProjectsPage({
   onLogout,
 }: ProjectsPageProps) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { isMobile } = useMobile();
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUser, setNewUser] = useState({ username: "", password: "", role: "commercial" as UserRole });
   const [addUserLoading, setAddUserLoading] = useState(false);
@@ -180,55 +185,122 @@ export default function ProjectsPage({
           <div className="topbar-title">Deyaar Feasibility Portfolio</div>
         </div>
         <div className="topbar-actions">
-          {onNavigateToCommercial && (
-            <button className="btn btn-ghost" onClick={onNavigateToCommercial} title="Commercial Team Cost Tracking">
-              Commercial
+          {/* Mobile: only hamburger button in topbar */}
+          {isMobile && (
+            <button className="btn btn-ghost btn-icon mobile-hamburger" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} title="Menu">
+              {mobileMenuOpen ? "✕" : "☰"}
             </button>
           )}
-          {onNavigateToSales && (
-            <button className="btn btn-ghost" onClick={onNavigateToSales} title="Sales Team Portal">
-              Sales
-            </button>
-          )}
-          {onNavigateToMarketing && (
-            <button className="btn btn-ghost" onClick={onNavigateToMarketing} title="Marketing Team Portal">
-              Marketing
-            </button>
-          )}
-          {onNavigateToCollections && (
-            <button className="btn btn-ghost" onClick={onNavigateToCollections} title="Collections Team Portal">
-              Collections
-            </button>
-          )}
-          {onNavigateToCollectionsForecast && (
-            <button className="btn btn-ghost" onClick={onNavigateToCollectionsForecast} title="Collections Forecast System">
-              Collections Forecast
-            </button>
-          )}
-          {onNavigateToBudget && (
-            <button className="btn btn-ghost" onClick={onNavigateToBudget} title="Budget vs Actuals">
-              Budget vs Actuals
-            </button>
-          )}
-          <span className="topbar-tag">Feasibility Portfolio</span>
-          {userName && (
-            <span className="topbar-tag" style={{ textTransform: "capitalize" }}>{userName}{userRole ? ` (${userRole})` : ""}</span>
-          )}
-          {userRole === "admin" && (
-            <button className="btn btn-ghost" onClick={() => setShowAddUser(true)} title="Add User">
-              + Add User
-            </button>
-          )}
-          <button className="btn btn-ghost btn-icon" onClick={onRefresh} disabled={loading} title="Refresh">
-            ↻
-          </button>
-          {onLogout && (
-            <button className="btn btn-ghost" onClick={onLogout} title="Sign out" style={{ color: "#f87171" }}>
-              Sign Out
-            </button>
+          {/* Desktop: full horizontal nav */}
+          {!isMobile && (
+            <>
+              {onNavigateToCommercial && (
+                <button className="btn btn-ghost" onClick={onNavigateToCommercial} title="Commercial Team Cost Tracking">
+                  Commercial
+                </button>
+              )}
+              {onNavigateToSales && (
+                <button className="btn btn-ghost" onClick={onNavigateToSales} title="Sales Team Portal">
+                  Sales
+                </button>
+              )}
+              {onNavigateToMarketing && (
+                <button className="btn btn-ghost" onClick={onNavigateToMarketing} title="Marketing Team Portal">
+                  Marketing
+                </button>
+              )}
+              {onNavigateToCollections && (
+                <button className="btn btn-ghost" onClick={onNavigateToCollections} title="Collections Team Portal">
+                  Collections
+                </button>
+              )}
+              {onNavigateToCollectionsForecast && (
+                <button className="btn btn-ghost" onClick={onNavigateToCollectionsForecast} title="Collections Forecast System">
+                  Collections Forecast
+                </button>
+              )}
+              {onNavigateToBudget && (
+                <button className="btn btn-ghost" onClick={onNavigateToBudget} title="Budget vs Actuals">
+                  Budget vs Actuals
+                </button>
+              )}
+              {userName && (
+                <span className="topbar-tag" style={{ textTransform: "capitalize" }}>{userName}</span>
+              )}
+              {userRole === "admin" && (
+                <button className="btn btn-ghost" onClick={() => setShowAddUser(true)} title="Add User">
+                  + Add User
+                </button>
+              )}
+              <button className="btn btn-ghost btn-icon" onClick={onRefresh} disabled={loading} title="Refresh">
+                ↻
+              </button>
+              {onLogout && (
+                <button className="btn btn-ghost" onClick={onLogout} title="Sign out" style={{ color: "#f87171" }}>
+                  Sign Out
+                </button>
+              )}
+            </>
           )}
         </div>
       </header>
+
+      {/* Mobile Navigation Menu */}
+      {mobileMenuOpen && isMobile && (
+        <div className="mobile-nav-overlay" onClick={() => setMobileMenuOpen(false)}>
+          <nav className="mobile-nav-menu" onClick={(e) => e.stopPropagation()}>
+            {userName && (
+              <div className="mobile-nav-user">
+                {userName}
+              </div>
+            )}
+            {onNavigateToCommercial && (
+              <button className="mobile-nav-item" onClick={() => { onNavigateToCommercial(); setMobileMenuOpen(false); }}>
+                Commercial
+              </button>
+            )}
+            {onNavigateToSales && (
+              <button className="mobile-nav-item" onClick={() => { onNavigateToSales(); setMobileMenuOpen(false); }}>
+                Sales
+              </button>
+            )}
+            {onNavigateToMarketing && (
+              <button className="mobile-nav-item" onClick={() => { onNavigateToMarketing(); setMobileMenuOpen(false); }}>
+                Marketing
+              </button>
+            )}
+            {onNavigateToCollections && (
+              <button className="mobile-nav-item" onClick={() => { onNavigateToCollections(); setMobileMenuOpen(false); }}>
+                Collections
+              </button>
+            )}
+            {onNavigateToCollectionsForecast && (
+              <button className="mobile-nav-item" onClick={() => { onNavigateToCollectionsForecast(); setMobileMenuOpen(false); }}>
+                Collections Forecast
+              </button>
+            )}
+            {onNavigateToBudget && (
+              <button className="mobile-nav-item" onClick={() => { onNavigateToBudget(); setMobileMenuOpen(false); }}>
+                Budget vs Actuals
+              </button>
+            )}
+            {userRole === "admin" && (
+              <button className="mobile-nav-item" onClick={() => { setShowAddUser(true); setMobileMenuOpen(false); }}>
+                + Add User
+              </button>
+            )}
+            <div className="mobile-nav-divider" />
+            <button className="mobile-nav-item" onClick={() => { onRefresh(); setMobileMenuOpen(false); }} disabled={loading}>
+              ↻ Refresh
+            </button>
+            {onLogout && (
+              <button className="mobile-nav-item mobile-nav-signout" onClick={() => { onLogout(); setMobileMenuOpen(false); }}>
+                Sign Out
+              </button>
+            )}
+          </nav>
+        </div>
+      )}
 
       <main className="main-content cfo-dashboard">
         {/* Page Header */}
@@ -545,9 +617,9 @@ export default function ProjectsPage({
             {addUserMsg && (
               <div style={{
                 ...modalStyles.msg,
-                background: addUserMsg.type === "success" ? "#0f291a" : "#451a22",
-                color: addUserMsg.type === "success" ? "#86efac" : "#fca5a5",
-                border: `1px solid ${addUserMsg.type === "success" ? "#166534" : "#7f1d1d"}`,
+                background: addUserMsg.type === "success" ? "#F0FAF0" : "#FFF5F5",
+                color: addUserMsg.type === "success" ? "#2D6A2E" : "#A64B2A",
+                border: `1px solid ${addUserMsg.type === "success" ? "#A3D9A5" : "#E8C4B8"}`,
               }}>
                 {addUserMsg.text}
               </div>
@@ -612,9 +684,9 @@ export default function ProjectsPage({
             {resetPwMsg && (
               <div style={{
                 ...modalStyles.msg,
-                background: resetPwMsg.type === "success" ? "#0f291a" : "#451a22",
-                color: resetPwMsg.type === "success" ? "#86efac" : "#fca5a5",
-                border: `1px solid ${resetPwMsg.type === "success" ? "#166534" : "#7f1d1d"}`,
+                background: resetPwMsg.type === "success" ? "#F0FAF0" : "#FFF5F5",
+                color: resetPwMsg.type === "success" ? "#2D6A2E" : "#A64B2A",
+                border: `1px solid ${resetPwMsg.type === "success" ? "#A3D9A5" : "#E8C4B8"}`,
               }}>
                 {resetPwMsg.text}
               </div>
@@ -678,25 +750,26 @@ const modalStyles: Record<string, React.CSSProperties> = {
   overlay: {
     position: "fixed",
     inset: 0,
-    background: "rgba(0, 0, 0, 0.6)",
+    background: "rgba(61, 41, 20, 0.5)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     zIndex: 1000,
   },
   card: {
-    background: "#1e293b",
-    border: "1px solid #334155",
-    borderRadius: "12px",
-    padding: "28px 32px",
+    background: "#FFFFFF",
+    border: "1px solid #EDE4D3",
+    borderRadius: "16px",
+    padding: "28px 24px",
     width: "100%",
     maxWidth: "500px",
     maxHeight: "90vh",
-    overflowY: "auto",
+    overflowY: "auto" as const,
     display: "flex",
-    flexDirection: "column",
+    flexDirection: "column" as const,
     gap: "16px",
-    boxShadow: "0 25px 50px rgba(0,0,0,0.5)",
+    boxShadow: "0 8px 32px rgba(61, 41, 20, 0.12), 0 2px 8px rgba(61, 41, 20, 0.06)",
+    margin: "0 16px",
   },
   header: {
     display: "flex",
@@ -704,15 +777,16 @@ const modalStyles: Record<string, React.CSSProperties> = {
     alignItems: "center",
   },
   title: {
-    color: "#f1f5f9",
+    color: "#3D2914",
     fontSize: "18px",
     fontWeight: 700,
     margin: 0,
+    fontFamily: "'Acta Pro', Georgia, serif",
   },
   closeBtn: {
     background: "none",
     border: "none",
-    color: "#94a3b8",
+    color: "#6B6B6B",
     fontSize: "18px",
     cursor: "pointer",
     padding: "4px 8px",
@@ -723,7 +797,7 @@ const modalStyles: Record<string, React.CSSProperties> = {
     fontSize: "13px",
   },
   label: {
-    color: "#cbd5e1",
+    color: "#3D2914",
     fontSize: "13px",
     fontWeight: 500,
     display: "flex",
@@ -731,11 +805,11 @@ const modalStyles: Record<string, React.CSSProperties> = {
     gap: "6px",
   },
   input: {
-    background: "#0f172a",
-    border: "1px solid #334155",
+    background: "#FAF6ED",
+    border: "1px solid #EDE4D3",
     borderRadius: "8px",
     padding: "10px 14px",
-    color: "#f1f5f9",
+    color: "#3D2914",
     fontSize: "14px",
     outline: "none",
   },
@@ -747,30 +821,30 @@ const modalStyles: Record<string, React.CSSProperties> = {
   },
   cancelBtn: {
     background: "transparent",
-    border: "1px solid #334155",
+    border: "1px solid #EDE4D3",
     borderRadius: "8px",
     padding: "10px 20px",
-    color: "#94a3b8",
+    color: "#6B6B6B",
     fontSize: "14px",
     cursor: "pointer",
   },
   submitBtn: {
-    background: "#3b82f6",
+    background: "linear-gradient(135deg, #D26935, #B85628)",
     border: "none",
     borderRadius: "8px",
     padding: "10px 20px",
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: "14px",
     fontWeight: 600,
     cursor: "pointer",
   },
   divider: {
     height: "1px",
-    background: "#334155",
+    background: "#EDE4D3",
     margin: "4px 0",
   },
   sectionLabel: {
-    color: "#94a3b8",
+    color: "#6B6B6B",
     fontSize: "12px",
     fontWeight: 600,
     textTransform: "uppercase" as const,
@@ -785,11 +859,12 @@ const modalStyles: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    background: "#0f172a",
+    background: "#FAF6ED",
     borderRadius: "8px",
     padding: "10px 14px",
     gap: "10px",
     flexWrap: "wrap" as const,
+    border: "1px solid #EDE4D3",
   },
   userInfo: {
     display: "flex",
@@ -797,25 +872,25 @@ const modalStyles: Record<string, React.CSSProperties> = {
     gap: "10px",
   },
   userName: {
-    color: "#f1f5f9",
+    color: "#3D2914",
     fontSize: "14px",
     fontWeight: 500,
   },
   userRole: {
-    color: "#64748b",
+    color: "#5C4033",
     fontSize: "12px",
-    background: "#1e293b",
-    border: "1px solid #334155",
+    background: "#F5ECD9",
+    border: "1px solid #EDE4D3",
     borderRadius: "4px",
     padding: "2px 8px",
     textTransform: "capitalize" as const,
   },
   resetBtn: {
     background: "transparent",
-    border: "1px solid #334155",
+    border: "1px solid #EDE4D3",
     borderRadius: "6px",
     padding: "5px 12px",
-    color: "#94a3b8",
+    color: "#D26935",
     fontSize: "12px",
     cursor: "pointer",
     whiteSpace: "nowrap" as const,

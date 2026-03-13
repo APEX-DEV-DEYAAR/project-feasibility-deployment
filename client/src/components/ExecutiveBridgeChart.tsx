@@ -17,6 +17,7 @@ interface ExecutiveBridgeChartProps {
 
 interface Segment {
   label: string;
+  value: number;
   start: number;
   end: number;
   total?: boolean;
@@ -36,6 +37,7 @@ function buildSegments(steps: BridgeStep[], total: number): Segment[] {
     running += step.budgetChange;
     return {
       label: step.label,
+      value: step.budgetChange,
       start,
       end: running,
       kind: step.kind,
@@ -44,6 +46,7 @@ function buildSegments(steps: BridgeStep[], total: number): Segment[] {
 
   segments.push({
     label: "Net Profit",
+    value: total,
     start: 0,
     end: total,
     total: true,
@@ -53,19 +56,22 @@ function buildSegments(steps: BridgeStep[], total: number): Segment[] {
   return segments;
 }
 
-function extent(segments: Segment[]): [number, number] {
+function yExtent(segments: Segment[]): [number, number] {
   let min = 0;
   let max = 0;
-  for (const segment of segments) {
-    min = Math.min(min, segment.start, segment.end);
-    max = Math.max(max, segment.start, segment.end);
+  for (const seg of segments) {
+    min = Math.min(min, seg.start, seg.end);
+    max = Math.max(max, seg.start, seg.end);
   }
-  return [min, max];
+  // Add 15% padding
+  const range = max - min || 1;
+  return [min - range * 0.1, max + range * 0.15];
 }
 
-function xScale(value: number, min: number, max: number, width: number): number {
+function yScale(value: number, min: number, max: number, height: number): number {
   const range = max - min || 1;
-  return ((value - min) / range) * width;
+  // Invert so higher values are at the top
+  return height - ((value - min) / range) * height;
 }
 
 function BridgeLane({
@@ -80,49 +86,87 @@ function BridgeLane({
   max: number;
 }) {
   const chartWidth = 760;
-  const groupWidth = chartWidth / segments.length;
-  const baseline = xScale(0, min, max, chartWidth);
+  const chartHeight = 200;
+  const barPadding = 16;
+  const colWidth = chartWidth / segments.length;
+  const barWidth = Math.min(colWidth - barPadding * 2, 80);
+  const baseline = yScale(0, min, max, chartHeight);
 
   return (
     <div className="exec-bridge-lane">
       <div className="exec-bridge-lane-title">{title}</div>
-      <svg className="exec-bridge-svg" viewBox={`0 0 ${chartWidth} 140`} preserveAspectRatio="none">
-        <line x1={baseline} x2={baseline} y1="8" y2="118" className="exec-bridge-baseline" />
+      <svg
+        className="exec-bridge-svg"
+        viewBox={`0 0 ${chartWidth} ${chartHeight + 40}`}
+        preserveAspectRatio="xMidYMid meet"
+      >
+        {/* Zero baseline */}
+        <line
+          x1="0"
+          x2={chartWidth}
+          y1={baseline}
+          y2={baseline}
+          stroke="#E8DCC8"
+          strokeWidth="1"
+          strokeDasharray="4 3"
+        />
+
         {segments.map((segment, index) => {
-          const left = xScale(Math.min(segment.start, segment.end), min, max, chartWidth);
-          const right = xScale(Math.max(segment.start, segment.end), min, max, chartWidth);
-          const width = Math.max(6, right - left);
-          const centerX = index * groupWidth + groupWidth / 2;
-          const barX = Math.max(8, Math.min(chartWidth - width - 8, centerX - width / 2));
-          const y = segment.total ? 44 : 26;
-          const height = segment.total ? 42 : 28;
-          const connectorX1 = xScale(segment.start, min, max, chartWidth);
-          const connectorX2 = xScale(segment.end, min, max, chartWidth);
+          const cx = index * colWidth + colWidth / 2;
+          const barX = cx - barWidth / 2;
+          const yTop = yScale(Math.max(segment.start, segment.end), min, max, chartHeight);
+          const yBottom = yScale(Math.min(segment.start, segment.end), min, max, chartHeight);
+
+          // For total bar, always draw from 0
+          const rectY = segment.total
+            ? yScale(Math.max(0, segment.end), min, max, chartHeight)
+            : yTop;
+          const rectH = segment.total
+            ? Math.abs(yScale(0, min, max, chartHeight) - yScale(segment.end, min, max, chartHeight))
+            : Math.max(4, yBottom - yTop);
+
+          // Connector line from previous segment's end to this segment's start
+          const showConnector = !segment.total && index > 0;
+          const prevCx = (index - 1) * colWidth + colWidth / 2;
 
           return (
             <g key={`${title}-${segment.label}`}>
-              {!segment.total && (
+              {showConnector && (
                 <line
-                  x1={connectorX1}
-                  x2={connectorX2}
-                  y1="72"
-                  y2="72"
-                  className="exec-bridge-connector"
+                  x1={prevCx + barWidth / 2 + 2}
+                  x2={barX - 2}
+                  y1={yScale(segment.start, min, max, chartHeight)}
+                  y2={yScale(segment.start, min, max, chartHeight)}
+                  stroke="#B0B0B0"
+                  strokeWidth="1"
+                  strokeDasharray="3 2"
                 />
               )}
               <rect
                 x={barX}
-                y={y}
-                width={width}
-                height={height}
-                rx="10"
+                y={rectY}
+                width={barWidth}
+                height={Math.max(4, rectH)}
+                rx="6"
                 fill={KIND_COLORS[segment.kind]}
                 opacity={segment.total ? 0.96 : 0.88}
               />
-              <text x={barX + width / 2} y={y - 6} textAnchor="middle" className="exec-bridge-value">
-                {formatM(segment.total ? segment.end : segment.end - segment.start, 0)}M
+              {/* Value label above/below bar */}
+              <text
+                x={cx}
+                y={rectY - 8}
+                textAnchor="middle"
+                className="exec-bridge-value"
+              >
+                {formatM(segment.value, 0)}M
               </text>
-              <text x={centerX} y="126" textAnchor="middle" className="exec-bridge-label">
+              {/* Category label at bottom */}
+              <text
+                x={cx}
+                y={chartHeight + 28}
+                textAnchor="middle"
+                className="exec-bridge-label"
+              >
                 {segment.label}
               </text>
             </g>
@@ -148,8 +192,10 @@ export default function ExecutiveBridgeChart({
     steps.map((step) => ({ ...step, budgetChange: step.blendedChange })),
     blendedTotal
   );
-  const [budgetMin, budgetMax] = extent(budgetSegments);
-  const [blendedMin, blendedMax] = extent(blendedSegments);
+
+  // Shared y-axis scale across both lanes
+  const [budgetMin, budgetMax] = yExtent(budgetSegments);
+  const [blendedMin, blendedMax] = yExtent(blendedSegments);
   const min = Math.min(budgetMin, blendedMin);
   const max = Math.max(budgetMax, blendedMax);
 
@@ -170,6 +216,17 @@ export default function ExecutiveBridgeChart({
             <strong>AED {formatM(blendedTotal)}M</strong>
           </div>
         </div>
+      </div>
+      <div className="exec-bridge-legend">
+        <span className="exec-bridge-legend-item">
+          <span style={{ background: KIND_COLORS.inflow, width: 12, height: 12, borderRadius: 3, display: "inline-block" }} /> Inflow
+        </span>
+        <span className="exec-bridge-legend-item">
+          <span style={{ background: KIND_COLORS.outflow, width: 12, height: 12, borderRadius: 3, display: "inline-block" }} /> Outflow
+        </span>
+        <span className="exec-bridge-legend-item">
+          <span style={{ background: KIND_COLORS.profit, width: 12, height: 12, borderRadius: 3, display: "inline-block" }} /> Net Profit
+        </span>
       </div>
       <BridgeLane title="Budget Bridge" segments={budgetSegments} min={min} max={max} />
       <BridgeLane title="Current Outlook" segments={blendedSegments} min={min} max={max} />

@@ -17,7 +17,7 @@ export interface AppConfig {
 
 // ---------- Auth ----------
 
-export type UserRole = "admin" | "sales" | "collections" | "commercial" | "finance";
+export type UserRole = "admin" | "sales" | "collections" | "commercial" | "finance" | "marketing" | "cfo";
 
 export interface AppUser {
   id: number;

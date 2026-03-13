@@ -74,7 +74,7 @@ export function authRoutes(authService: AuthService): Router {
           res.status(400).json({ message: "Username and password are required" });
           return;
         }
-        const validRoles = ["admin", "sales", "collections", "commercial", "finance"];
+        const validRoles = ["admin", "sales", "collections", "commercial", "finance", "marketing", "cfo"];
         const userRole = validRoles.includes(role) ? role : "commercial";
         const user = await authService.register(
           username,

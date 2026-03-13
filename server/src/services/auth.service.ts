@@ -1,4 +1,3 @@
-import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import type { UserRepository } from "../repositories/user.repository.js";
@@ -43,17 +42,26 @@ export class AuthService {
     }
   }
 
-  /** Seed a default admin user if the users table is empty. */
+  /** Seed default department users if they don't already exist. */
   async seedDefaultUser(): Promise<void> {
-    const count = await this.userRepo.count();
-    if (count > 0) return;
+    const seedUsers: { username: string; password: string; role: UserRole }[] = [
+      { username: "admin", password: "Admin@123456", role: "admin" },
+      { username: "commercial", password: "Commercial@123", role: "commercial" },
+      { username: "sales", password: "Sales@123456", role: "sales" },
+      { username: "finance", password: "Finance@1234", role: "finance" },
+      { username: "collections", password: "Collections@123", role: "collections" },
+      { username: "marketing", password: "Marketing@123", role: "marketing" },
+      { username: "cfo", password: "Cfo@123456789", role: "cfo" },
+    ];
 
-    const generatedPassword = randomBytes(16).toString("hex");
-    const hash = await bcrypt.hash(generatedPassword, BCRYPT_ROUNDS);
-    await this.userRepo.create("admin", hash, "admin");
-    console.log("  Seeded default admin user. Username: admin");
-    console.log(`  Generated password: ${generatedPassword}`);
-    console.log("  IMPORTANT: Change this password immediately via the admin UI.");
+    for (const seed of seedUsers) {
+      const existing = await this.userRepo.findByUsername(seed.username);
+      if (existing) continue;
+
+      const hash = await bcrypt.hash(seed.password, BCRYPT_ROUNDS);
+      await this.userRepo.create(seed.username, hash, seed.role);
+      console.log(`  Seeded user: ${seed.username} (${seed.role})`);
+    }
   }
 
   async listUsers(): Promise<Omit<import("../types/index.js").AppUser, "passwordHash">[]> {
