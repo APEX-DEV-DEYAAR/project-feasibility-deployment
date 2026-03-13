@@ -168,12 +168,31 @@ export class CostTrackingRepository {
     if (payloads.length > 500) {
       throw new Error("Bulk operations are limited to 500 items");
     }
-    const results: ProjectMonthlyCost[] = [];
-    for (const payload of payloads) {
-      const result = await this.saveMonthlyCost(payload);
-      results.push(result);
-    }
-    return results;
+    if (payloads.length === 0) return [];
+
+    const rows = payloads.map((p) => [
+      p.projectId,
+      p.categoryId,
+      p.year,
+      p.month,
+      p.actualAmount ?? null,
+      p.projectedAmount ?? 0,
+      p.budgetAmount ?? null,
+      p.notes ?? null,
+      p.createdBy ?? null,
+    ]);
+
+    const result = await this.db.bulkUpsertReturning<ProjectMonthlyCost>({
+      table: "project_monthly_costs",
+      conflictCols: [...COST_CONFLICT_COLS],
+      insertCols: [...COST_INSERT_COLS],
+      updateCols: [...COST_UPDATE_COLS],
+      selectExpr: COST_SELECT,
+      extraSetClauses: [`updated_at = ${this.db.nowExpression()}`],
+      rows,
+    });
+
+    return result.rows;
   }
 
   async deleteMonthlyCost(

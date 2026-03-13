@@ -142,6 +142,37 @@ export abstract class BaseAdapter {
   }
 
   /**
+   * Execute a batched multi-row UPSERT and return all resulting rows.
+   * Builds a single INSERT ... VALUES (...), (...), ... ON CONFLICT ... RETURNING statement.
+   */
+  async bulkUpsertReturning<T = Record<string, unknown>>(
+    opts: Omit<UpsertReturningOptions, "values" | "startIdx"> & { rows: unknown[][] }
+  ): Promise<QueryResult<T>> {
+    if (opts.rows.length === 0) return { rows: [], rowCount: 0 };
+
+    const colCount = opts.insertCols.length;
+    const allValues: unknown[] = [];
+    const valuesClauses: string[] = [];
+
+    for (let r = 0; r < opts.rows.length; r++) {
+      const startIdx = r * colCount + 1;
+      const placeholders = opts.insertCols.map((_, i) => this.placeholder(startIdx + i)).join(", ");
+      valuesClauses.push(`(${placeholders})`);
+      allValues.push(...opts.rows[r]);
+    }
+
+    const updates = opts.updateCols.map((c) => `${c} = EXCLUDED.${c}`);
+    if (opts.extraSetClauses) updates.push(...opts.extraSetClauses);
+
+    const sql =
+      `INSERT INTO ${opts.table} (${opts.insertCols.join(", ")}) VALUES ${valuesClauses.join(", ")} ` +
+      `ON CONFLICT (${opts.conflictCols.join(", ")}) DO UPDATE SET ${updates.join(", ")} ` +
+      `RETURNING ${opts.selectExpr}`;
+
+    return this.query<T>(sql, allValues);
+  }
+
+  /**
    * Generate a DELETE with JOIN.
    * PG: DELETE ... USING
    * Oracle: DELETE ... WHERE EXISTS

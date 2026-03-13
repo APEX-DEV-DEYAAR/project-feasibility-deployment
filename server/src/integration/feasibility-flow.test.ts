@@ -84,15 +84,15 @@ function makeMockRepos() {
 
 function mockReqRes(overrides: Partial<Request> = {}) {
   const req = { params: {}, body: {}, query: {}, ...overrides } as Request;
-  const res = {
+  const res: { statusCode: number; _json: unknown; status(code: number): typeof res; json(data: unknown): typeof res; end(): typeof res } = {
     statusCode: 200,
     _json: null as unknown,
-    status(code: number) { this.statusCode = code; return this; },
-    json(data: unknown) { this._json = data; return this; },
-    end() { return this; },
-  } as unknown as Response & { statusCode: number; _json: unknown };
+    status(code: number) { res.statusCode = code; return res; },
+    json(data: unknown) { res._json = data; return res; },
+    end() { return res; },
+  };
   const next: NextFunction = vi.fn();
-  return { req, res, next };
+  return { req, res: res as unknown as Response & { statusCode: number; _json: unknown }, next };
 }
 
 describe("Feasibility controller → service integration", () => {

@@ -97,7 +97,7 @@ export default function TeamCostPage({ teamCode, teamName, projects, showCollect
     [projects, selectedProjectId]
   );
 
-  useEffect(() => { loadCategories(); }, []);
+  useEffect(() => { loadCategories(); loadXlsx(); }, []);
   useEffect(() => { if (selectedProjectId) loadData(); }, [selectedProjectId]);
 
   const loadCategories = async () => {
