@@ -1,20 +1,20 @@
 import { Router } from "express";
-import { healthRoutes } from "./health.routes.js";
-import { authRoutes } from "./auth.routes.js";
-import { projectRoutes } from "./project.routes.js";
-import { feasibilityRoutes } from "./feasibility.routes.js";
-import { costTrackingRoutes } from "./cost-tracking.routes.js";
-import { collectionsRoutes } from "./revenue.routes.js";
-import { collectionsForecastRoutes } from "./collections-forecast.routes.js";
-import { authMiddleware, csrfGuard } from "../middleware/auth.js";
-import { createAuditLog } from "../middleware/auditLog.js";
-import type { AuditLogRepository } from "../repositories/audit-log.repository.js";
-import type { ProjectService } from "../services/project.service.js";
-import type { FeasibilityService } from "../services/feasibility.service.js";
-import type { CostTrackingController } from "../controllers/cost-tracking.controller.js";
-import type { CollectionsController } from "../controllers/revenue.controller.js";
-import type { CollectionsForecastController } from "../controllers/collections-forecast.controller.js";
-import type { AuthService } from "../services/auth.service.js";
+import { healthRoutes } from "../features/health/health.routes.js";
+import { authRoutes } from "../features/auth/auth.routes.js";
+import { projectRoutes } from "../features/project/project.routes.js";
+import { feasibilityRoutes } from "../features/feasibility/feasibility.routes.js";
+import { costTrackingRoutes } from "../features/cost-tracking/cost-tracking.routes.js";
+import { collectionsRoutes } from "../features/collections/revenue.routes.js";
+import { collectionsForecastRoutes } from "../features/collections-forecast/collections-forecast.routes.js";
+import { authMiddleware, csrfGuard } from "../features/auth/auth.middleware.js";
+import { createAuditLog } from "../shared/middleware/auditLog.js";
+import type { AuditLogRepository } from "../shared/middleware/audit-log.repository.js";
+import type { ProjectService } from "../features/project/project.service.js";
+import type { FeasibilityService } from "../features/feasibility/feasibility.service.js";
+import type { CostTrackingController } from "../features/cost-tracking/cost-tracking.controller.js";
+import type { CollectionsController } from "../features/collections/revenue.controller.js";
+import type { CollectionsForecastController } from "../features/collections-forecast/collections-forecast.controller.js";
+import type { AuthService } from "../features/auth/auth.service.js";
 
 interface Services {
   projectService: ProjectService;

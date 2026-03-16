@@ -31,9 +31,29 @@ Core backend layering:
 Request -> Routes -> Controllers -> Services -> Repositories -> DB Adapter -> Database
 ```
 
+Backend organization: **feature-driven architecture**
+
+```text
+features/           # each domain feature is self-contained
+  <feature>/
+    <feature>.routes.ts
+    <feature>.controller.ts
+    <feature>.service.ts
+    <feature>.repository.ts
+shared/             # cross-cutting infrastructure used by all features
+  db/               # database adapters
+  middleware/        # error handler, audit logging
+  errors/           # AppError classes
+  config/           # env config
+  types/            # shared TypeScript interfaces
+  utils/            # shared calculation utilities
+```
+
 Key patterns:
+- Feature-driven folder structure (each feature has its own routes, controller, service, repository)
 - Repository pattern for data access
 - Adapter pattern for database abstraction
+- Cross-feature imports allowed for dependencies (e.g. cost-tracking → collections repository)
 - shared domain types across server and client
 - no ORM
 
@@ -64,42 +84,69 @@ CMSTest/
     src/
       index.ts
       app.ts
-      config/
-        index.ts
-      db/
-        index.ts
-        adapters/
-          base.adapter.ts
-          postgres.adapter.ts
-      repositories/
-        project.repository.ts
-        feasibility.repository.ts
-        feasibility-relational.repository.ts
-        archive.repository.ts
-        reporting.repository.ts
-        cost-tracking.repository.ts
-        revenue.repository.ts
-      services/
-        project.service.ts
-        feasibility.service.ts
-        cost-tracking.service.ts
-        revenue.service.ts
-      controllers/
-        project.controller.ts
-        feasibility.controller.ts
-        cost-tracking.controller.ts
-        revenue.controller.ts
       routes/
-        index.ts
-        collections-forecast.routes.ts
-      middleware/
-        errorHandler.ts
-      errors/
-        AppError.ts
-      utils/
-        calculations.ts
-      types/
-        index.ts
+        index.ts              # central route composition
+      features/
+        health/
+          health.controller.ts
+          health.routes.ts
+        auth/
+          auth.middleware.ts
+          auth.routes.ts
+          auth.service.ts
+          user.repository.ts
+        project/
+          project.controller.ts
+          project.service.ts
+          project.repository.ts
+          project.routes.ts
+        feasibility/
+          feasibility.controller.ts
+          feasibility.service.ts
+          feasibility.repository.ts
+          feasibility-relational.repository.ts
+          archive.repository.ts
+          reporting.repository.ts
+          feasibility.routes.ts
+        cost-tracking/
+          cost-tracking.controller.ts
+          cost-tracking.service.ts
+          cost-tracking.repository.ts
+          cost-tracking.routes.ts
+        collections/
+          revenue.controller.ts
+          revenue.service.ts
+          revenue.repository.ts
+          revenue.routes.ts
+        collections-forecast/
+          collections-forecast.controller.ts
+          collections-forecast.service.ts
+          collections-forecast.repository.ts
+          collections-lookup.repository.ts
+          collections-probability.service.ts
+          collections-forecast.routes.ts
+      shared/
+        db/
+          index.ts
+          adapters/
+            base.adapter.ts
+            postgres.adapter.ts
+            oracle.adapter.ts
+        middleware/
+          errorHandler.ts
+          auditLog.ts
+          audit-log.repository.ts
+        errors/
+          AppError.ts
+        config/
+          index.ts
+        types/
+          index.ts
+        utils/
+          calculations.ts
+      integration/
+        feasibility-flow.test.ts
+        project-flow.test.ts
     sql/
       postgres/
         001_init.sql

@@ -2,16 +2,16 @@ import express, { type Express } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
-import { config } from "./config/index.js";
+import { config } from "./shared/config/index.js";
 import { apiRoutes } from "./routes/index.js";
-import { errorHandler } from "./middleware/errorHandler.js";
-import type { ProjectService } from "./services/project.service.js";
-import type { FeasibilityService } from "./services/feasibility.service.js";
-import type { CostTrackingController } from "./controllers/cost-tracking.controller.js";
-import type { CollectionsController } from "./controllers/revenue.controller.js";
-import type { CollectionsForecastController } from "./controllers/collections-forecast.controller.js";
-import type { AuthService } from "./services/auth.service.js";
-import type { AuditLogRepository } from "./repositories/audit-log.repository.js";
+import { errorHandler } from "./shared/middleware/errorHandler.js";
+import type { ProjectService } from "./features/project/project.service.js";
+import type { FeasibilityService } from "./features/feasibility/feasibility.service.js";
+import type { CostTrackingController } from "./features/cost-tracking/cost-tracking.controller.js";
+import type { CollectionsController } from "./features/collections/revenue.controller.js";
+import type { CollectionsForecastController } from "./features/collections-forecast/collections-forecast.controller.js";
+import type { AuthService } from "./features/auth/auth.service.js";
+import type { AuditLogRepository } from "./shared/middleware/audit-log.repository.js";
 
 interface Services {
   projectService: ProjectService;
