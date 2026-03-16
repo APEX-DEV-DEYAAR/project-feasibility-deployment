@@ -1,0 +1,22 @@
+{
+    "sqltools.connections": [
+        {
+            "connectionTimeout": 15,
+            "mssqlOptions": {
+                "appName": "SQLTools",
+                "useUTC": true,
+                "encrypt": true,
+                "trustServerCertificate": false
+            },
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "rpasqldb.database.windows.net",
+            "port": 1433,
+            "driver": "MSSQL",
+            "name": "LLPortal",
+            "database": "llportal-dpm",
+            "username": "rpasqladmin",
+            "password": "Rpa@2024%$"
+        }
+    ]
+}

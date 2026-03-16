@@ -17,7 +17,8 @@
       "Bash(find \"C:\\\\Users\\\\Shuja\\\\Desktop\\\\Project-Feasibility\" -type f \\\\\\( -name \"*.test.*\" -o -name \"*.spec.*\" \\\\\\) -not -path \"*/node_modules/*\" 2>/dev/null | head -20)",
       "Bash(cd \"C:\\\\Users\\\\Shuja\\\\Desktop\\\\Project-Feasibility\" && npm ls vitest --workspace server 2>&1)",
       "Bash(cd \"C:\\\\Users\\\\Shuja\\\\Desktop\\\\Project-Feasibility\" && npm run test --workspace server 2>&1)",
-      "Bash(cd \"C:\\\\Users\\\\Shuja\\\\Desktop\\\\Project-Feasibility\" && npm run test --workspace client 2>&1)"
+      "Bash(cd \"C:\\\\Users\\\\Shuja\\\\Desktop\\\\Project-Feasibility\" && npm run test --workspace client 2>&1)",
+      "Bash(netstat -ano | grep :4000 | grep LISTEN)"
     ]
   }
 }
