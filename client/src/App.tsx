@@ -47,13 +47,13 @@ interface ToastItem {
 // ---- Role-based screen access ----
 // admin sees everything, other roles see specific screens
 const ROLE_SCREENS: Record<UserRole, Set<string>> = {
-  admin: new Set(["projects", "feasibility", "portfolio", "commercial", "sales", "marketing", "collections", "collectionsForecast", "budget"]),
+  admin: new Set(["projects", "feasibility", "portfolio", "commercial", "sales", "marketing", "collections", "budget"]),
   commercial: new Set(["projects", "feasibility", "portfolio", "commercial", "budget"]),
   sales: new Set(["sales"]),
-  collections: new Set(["collections", "collectionsForecast"]),
+  collections: new Set(["collections"]),
   finance: new Set(["projects", "feasibility", "portfolio", "budget"]),
   marketing : new Set(["marketing"]),
-  cfo : new Set(["projects", "feasibility", "portfolio", "commercial", "sales", "marketing", "collections", "collectionsForecast", "budget"])
+  cfo : new Set([ "budget"])
 };
 
 function canAccess(role: UserRole, screen: string): boolean {
