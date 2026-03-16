@@ -440,6 +440,68 @@ export class OracleAdapter extends BaseAdapter {
   }
 
   // ---------------------------------------------------------------------------
+  // BULK UPSERT RETURNING — Oracle: multi-row MERGE + SELECT back all rows
+  // ---------------------------------------------------------------------------
+  override async bulkUpsertReturning<T = Record<string, unknown>>(
+    opts: Omit<UpsertReturningOptions, "values" | "startIdx"> & { rows: unknown[][] }
+  ): Promise<QueryResult<T>> {
+    if (opts.rows.length === 0) return { rows: [], rowCount: 0 };
+
+    const colCount = opts.insertCols.length;
+    const colToAlias = new Map(opts.insertCols.map((col, i) => [col, `c${i}`]));
+
+    // Build UNION ALL subquery: SELECT :1 AS c0, :2 AS c1, ... FROM dual UNION ALL ...
+    const allValues: unknown[] = [];
+    const unionParts: string[] = [];
+    for (let r = 0; r < opts.rows.length; r++) {
+      const startIdx = r * colCount + 1;
+      const srcCols = opts.insertCols
+        .map((_, i) => `${this.placeholder(startIdx + i)} AS c${i}`)
+        .join(", ");
+      unionParts.push(`SELECT ${srcCols} FROM dual`);
+      allValues.push(...opts.rows[r]);
+    }
+
+    const onCondition = opts.conflictCols
+      .map((col) => `t.${col} = src.${colToAlias.get(col)}`)
+      .join(" AND ");
+
+    const updateSet = opts.updateCols.map((col) => `t.${col} = src.${colToAlias.get(col)}`);
+    if (opts.extraSetClauses) updateSet.push(...opts.extraSetClauses);
+
+    const insertColList = opts.insertCols.join(", ");
+    const insertValues = opts.insertCols.map((col) => `src.${colToAlias.get(col)}`).join(", ");
+
+    const mergeSql =
+      `MERGE INTO ${opts.table} t ` +
+      `USING (${unionParts.join(" UNION ALL ")}) src ` +
+      `ON (${onCondition}) ` +
+      `WHEN MATCHED THEN UPDATE SET ${updateSet.join(", ")} ` +
+      `WHEN NOT MATCHED THEN INSERT (${insertColList}) VALUES (${insertValues})`;
+
+    await this.query(mergeSql, allValues);
+
+    // SELECT back all affected rows using conflict-key tuples
+    const conflictIdxes = opts.conflictCols.map((col) => opts.insertCols.indexOf(col));
+    const whereParts: string[] = [];
+    const selectValues: unknown[] = [];
+    let paramIdx = 1;
+
+    for (const row of opts.rows) {
+      const conds = opts.conflictCols.map((col, ci) => {
+        selectValues.push(row[conflictIdxes[ci]]);
+        return `${col} = ${this.placeholder(paramIdx++)}`;
+      });
+      whereParts.push(`(${conds.join(" AND ")})`);
+    }
+
+    return this.query<T>(
+      `SELECT ${opts.selectExpr} FROM ${opts.table} WHERE ${whereParts.join(" OR ")}`,
+      selectValues
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   // DELETE with JOIN — Oracle uses WHERE EXISTS instead of USING
   // ---------------------------------------------------------------------------
   override deleteWithJoin(

@@ -2024,7 +2024,7 @@
   padding: 16px;
   background: #FAF8F5;
   border-radius: 12px;
-  margin-top: 16px;
+  margin-top: 20px;
 }
 
 .exec-bridge-lane-title {
@@ -2039,7 +2039,8 @@
 .exec-bridge-svg {
   width: 100%;
   height: auto;
-  overflow: visible;
+  display: block;
+  overflow: hidden;
 }
 
 .exec-bridge-value {

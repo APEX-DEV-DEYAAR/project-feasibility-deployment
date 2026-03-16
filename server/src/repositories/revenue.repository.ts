@@ -81,12 +81,30 @@ export class CollectionsRepository {
     if (payloads.length > 500) {
       throw new Error("Bulk operations are limited to 500 items");
     }
-    const results: ProjectMonthlyCollections[] = [];
-    for (const payload of payloads) {
-      const result = await this.saveMonthlyCollections(payload);
-      results.push(result);
-    }
-    return results;
+    if (payloads.length === 0) return [];
+
+    const rows = payloads.map((p) => [
+      p.projectId,
+      p.year,
+      p.month,
+      p.budgetAmount ?? null,
+      p.actualAmount ?? null,
+      p.projectedAmount ?? null,
+      p.notes ?? null,
+      p.createdBy ?? null,
+    ]);
+
+    const result = await this.db.bulkUpsertReturning<ProjectMonthlyCollections>({
+      table: "project_monthly_revenue",
+      conflictCols: [...COLLECTIONS_CONFLICT_COLS],
+      insertCols: [...COLLECTIONS_INSERT_COLS],
+      updateCols: [...COLLECTIONS_UPDATE_COLS],
+      selectExpr: COLLECTIONS_SELECT,
+      extraSetClauses: [`updated_at = ${this.db.nowExpression()}`],
+      rows,
+    });
+
+    return result.rows;
   }
 
   async deleteMonthlyCollections(
