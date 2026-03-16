@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createProjectController } from "../controllers/project.controller.js";
-import { ProjectService } from "../services/project.service.js";
-import type { ProjectRepository } from "../repositories/project.repository.js";
+import { createProjectController } from "../features/project/project.controller.js";
+import { ProjectService } from "../features/project/project.service.js";
+import type { ProjectRepository } from "../features/project/project.repository.js";
 import type { Request, Response, NextFunction } from "express";
 
 /**

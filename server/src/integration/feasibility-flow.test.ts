@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createFeasibilityController } from "../controllers/feasibility.controller.js";
-import { FeasibilityService } from "../services/feasibility.service.js";
+import { createFeasibilityController } from "../features/feasibility/feasibility.controller.js";
+import { FeasibilityService } from "../features/feasibility/feasibility.service.js";
 import type { Request, Response, NextFunction } from "express";
 
 /**
