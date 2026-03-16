@@ -17,7 +17,11 @@
       "Bash(find \"C:\\\\Users\\\\Shuja\\\\Desktop\\\\Project-Feasibility\" -type f \\\\\\( -name \"*.test.*\" -o -name \"*.spec.*\" \\\\\\) -not -path \"*/node_modules/*\" 2>/dev/null | head -20)",
       "Bash(cd \"C:\\\\Users\\\\Shuja\\\\Desktop\\\\Project-Feasibility\" && npm ls vitest --workspace server 2>&1)",
       "Bash(cd \"C:\\\\Users\\\\Shuja\\\\Desktop\\\\Project-Feasibility\" && npm run test --workspace server 2>&1)",
-      "Bash(cd \"C:\\\\Users\\\\Shuja\\\\Desktop\\\\Project-Feasibility\" && npm run test --workspace client 2>&1)"
+      "Bash(cd \"C:\\\\Users\\\\Shuja\\\\Desktop\\\\Project-Feasibility\" && npm run test --workspace client 2>&1)",
+      "Bash(cd /c/Users/Shuja/Desktop/Project-Feasibility/server/src && \\\\\nmkdir -p features/health features/auth features/project features/feasibility features/cost-tracking features/collections features/collections-forecast shared/db/adapters shared/middleware shared/errors shared/config shared/types shared/utils && \\\\\necho \"dirs created\")",
+      "Bash(cd /c/Users/Shuja/Desktop/Project-Feasibility/server/src && \\\\\nrmdir controllers services repositories middleware errors config types utils db/adapters db 2>/dev/null; \\\\\necho \"empty dirs cleaned\")",
+      "Bash(rm -rf /c/Users/Shuja/Desktop/Project-Feasibility/server/dist && cd /c/Users/Shuja/Desktop/Project-Feasibility/server && npx tsc 2>&1)",
+      "Bash(cd /c/Users/Shuja/Desktop/Project-Feasibility/server && npx vitest run 2>&1)"
     ]
   }
 }
