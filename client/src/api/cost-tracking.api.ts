@@ -9,6 +9,8 @@ import type {
   TeamCode,
   MonthlyCollectionsRow,
   SaveMonthlyCollectionsPayload,
+  MonthlySalesRow,
+  SaveMonthlySalesPayload,
   BudgetVsActualsResponse,
 } from "../types";
 
@@ -119,9 +121,27 @@ export function clearProjectCollections(projectId: number): Promise<{ message: s
   );
 }
 
+// ---- Sales Tracking ----
+export function fetchMonthlySales(projectId: number, year?: number): Promise<MonthlySalesRow[]> {
+  const query = typeof year === "number" ? `?year=${encodeURIComponent(year)}` : "";
+  return apiClient.get<MonthlySalesRow[]>(`/projects/${encodeURIComponent(projectId)}/sales${query}`);
+}
+
+export function bulkSaveMonthlySales(
+  sales: SaveMonthlySalesPayload[]
+): Promise<MonthlySalesRow[]> {
+  return apiClient.post<MonthlySalesRow[]>("/sales/bulk", { sales });
+}
+
+export function clearProjectSales(projectId: number): Promise<{ message: string; deletedCount: number }> {
+  return apiClient.del<{ message: string; deletedCount: number }>(
+    `/projects/${encodeURIComponent(projectId)}/sales/clear`
+  );
+}
+
 // ---- Budget vs Actuals ----
-export function fetchBudgetVsActuals(projectId: number, year: number): Promise<BudgetVsActualsResponse> {
+export function fetchBudgetVsActuals(projectId: number): Promise<BudgetVsActualsResponse> {
   return apiClient.get<BudgetVsActualsResponse>(
-    `/projects/${encodeURIComponent(projectId)}/budget-vs-actuals?year=${encodeURIComponent(year)}`
+    `/projects/${encodeURIComponent(projectId)}/budget-vs-actuals`
   );
 }

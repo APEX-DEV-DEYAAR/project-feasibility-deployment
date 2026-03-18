@@ -5,7 +5,9 @@ import { projectRoutes } from "../features/project/project.routes.js";
 import { feasibilityRoutes } from "../features/feasibility/feasibility.routes.js";
 import { costTrackingRoutes } from "../features/cost-tracking/cost-tracking.routes.js";
 import { collectionsRoutes } from "../features/collections/revenue.routes.js";
+import { salesRoutes } from "../features/sales-tracking/sales.routes.js";
 import { collectionsForecastRoutes } from "../features/collections-forecast/collections-forecast.routes.js";
+import { cfoDashboardRoutes } from "../features/cfo-dashboard/cfo-dashboard.routes.js";
 import { authMiddleware, csrfGuard } from "../features/auth/auth.middleware.js";
 import { createAuditLog } from "../shared/middleware/auditLog.js";
 import type { AuditLogRepository } from "../shared/middleware/audit-log.repository.js";
@@ -13,7 +15,9 @@ import type { ProjectService } from "../features/project/project.service.js";
 import type { FeasibilityService } from "../features/feasibility/feasibility.service.js";
 import type { CostTrackingController } from "../features/cost-tracking/cost-tracking.controller.js";
 import type { CollectionsController } from "../features/collections/revenue.controller.js";
+import type { SalesController } from "../features/sales-tracking/sales.controller.js";
 import type { CollectionsForecastController } from "../features/collections-forecast/collections-forecast.controller.js";
+import type { CfoDashboardController } from "../features/cfo-dashboard/cfo-dashboard.controller.js";
 import type { AuthService } from "../features/auth/auth.service.js";
 
 interface Services {
@@ -21,7 +25,9 @@ interface Services {
   feasibilityService: FeasibilityService;
   costTrackingController: CostTrackingController;
   collectionsController: CollectionsController;
+  salesController: SalesController;
   collectionsForecastController: CollectionsForecastController;
+  cfoDashboardController: CfoDashboardController;
   authService: AuthService;
   auditLogRepo: AuditLogRepository;
 }
@@ -31,7 +37,9 @@ export function apiRoutes({
   feasibilityService,
   costTrackingController,
   collectionsController,
+  salesController,
   collectionsForecastController,
+  cfoDashboardController,
   authService,
   auditLogRepo,
 }: Services): Router {
@@ -40,6 +48,7 @@ export function apiRoutes({
   // Public routes
   router.use(healthRoutes());
   router.use(authRoutes(authService));
+  router.use(cfoDashboardRoutes(cfoDashboardController));
 
   // Protected routes — require valid JWT + CSRF guard + audit logging
   router.use(csrfGuard);
@@ -49,6 +58,7 @@ export function apiRoutes({
   router.use(feasibilityRoutes(feasibilityService));
   router.use(costTrackingRoutes(costTrackingController));
   router.use(collectionsRoutes(collectionsController));
+  router.use(salesRoutes(salesController));
   router.use(collectionsForecastRoutes(collectionsForecastController));
 
   return router;

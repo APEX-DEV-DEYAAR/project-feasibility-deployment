@@ -189,6 +189,13 @@ export interface FeasibilityMetrics {
   kpis: KpiMetrics;
 }
 
+export interface MetricOverride {
+  metricKey: string;
+  originalValue: number;
+  overrideValue: number;
+  justification: string;
+}
+
 export interface FeasibilityRun {
   id: number;
   projectId: number;
@@ -196,6 +203,7 @@ export interface FeasibilityRun {
   status: FeasibilityStatus;
   payload: NormalizedPayload;
   metrics: FeasibilityMetrics;
+  overrides?: MetricOverride[];
   createdAt: string;
   updatedAt: string;
   frozenAt: string | null;
@@ -210,6 +218,7 @@ export interface ArchivedRun {
   version: number;
   payload: NormalizedPayload;
   metrics: FeasibilityMetrics;
+  overrides?: MetricOverride[];
   frozenAt: string | null;
   archivedAt: string;
 }
@@ -349,12 +358,77 @@ export interface SaveMonthlyCollectionsPayload {
   createdBy?: string;
 }
 
+// ---------- Sales Tracking ----------
+
+export interface ProjectMonthlySales {
+  id: number;
+  projectId: number;
+  year: number;
+  month: number;
+  budgetAmount: number | null;
+  actualAmount: number | null;
+  projectedAmount: number | null;
+  notes: string | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MonthlySalesRow {
+  year: number;
+  month: number;
+  monthName: string;
+  budgetAmount: number | null;
+  actualAmount: number | null;
+  projectedAmount: number | null;
+  notes: string | null;
+}
+
+export interface SaveMonthlySalesPayload {
+  projectId: number;
+  year: number;
+  month: number;
+  budgetAmount?: number | null;
+  actualAmount?: number | null;
+  projectedAmount?: number | null;
+  notes?: string;
+  createdBy?: string;
+}
+
 // ---------- Budget vs Actuals ----------
+
+export interface BvaCostAggregate {
+  categoryId: number;
+  categoryName: string;
+  categoryCode: string;
+  team: TeamCode;
+  budget: number;
+  actual: number;
+  projected: number;
+  blended: number;
+  lastActivity: string | null;
+}
+
+export interface BvaRevenueAggregate {
+  budget: number;
+  actual: number;
+  projected: number;
+  blended: number;
+  lastActivity: string | null;
+}
+
+export interface BvaSalesAggregate {
+  budget: number;
+  actual: number;
+  projected: number;
+  blended: number;
+  lastActivity: string | null;
+}
 
 export interface BudgetVsActualRow {
   lineItem: string;
-  type: "cost" | "revenue";
-  team: TeamCode | "revenue";
+  type: "cost" | "revenue" | "sales";
+  team: TeamCode | "revenue" | "sales-tracking";
   budget: number;
   actual: number;
   projected: number;

@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import type { ProjectSummary, Project, FeasibilityRun, ArchivedRun } from "../types";
+import type { ProjectSummary, Project, FeasibilityRun, ArchivedRun, MetricOverride } from "../types";
 
 // Projects
 export function fetchProjects(): Promise<ProjectSummary[]> {
@@ -39,4 +39,9 @@ export function editFrozenFeasibility(projectId: number): Promise<FeasibilityRun
 // Archive
 export function fetchArchive(projectId: number): Promise<ArchivedRun[]> {
   return apiClient.get<ArchivedRun[]>(`/projects/${projectId}/feasibility/archive`);
+}
+
+// Overrides
+export function saveOverrides(projectId: number, overrides: MetricOverride[]): Promise<MetricOverride[]> {
+  return apiClient.put<MetricOverride[]>(`/projects/${projectId}/feasibility/overrides`, { overrides });
 }

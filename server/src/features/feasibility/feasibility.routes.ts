@@ -12,6 +12,7 @@ export function feasibilityRoutes(service: FeasibilityService): Router {
   router.post("/projects/:id/feasibility/freeze", controller.freeze);
   router.post("/projects/:id/feasibility/edit", controller.editFrozen);
   router.get("/projects/:id/feasibility/archive", controller.getArchive);
+  router.put("/projects/:id/feasibility/overrides", controller.saveOverrides);
 
   return router;
 }

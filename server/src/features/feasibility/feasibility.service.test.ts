@@ -60,7 +60,8 @@ function buildService(mocks: ReturnType<typeof makeMocks>) {
     mocks.archiveRepo as any,
     mocks.relationalRepo as any,
     mocks.projectRepo as any,
-    mocks.reportingRepo as any
+    mocks.reportingRepo as any,
+    { findByRunId: vi.fn().mockResolvedValue([]), saveForRun: vi.fn(), findByArchiveId: vi.fn().mockResolvedValue([]), saveForArchive: vi.fn(), copyRunToArchive: vi.fn(), deleteForRun: vi.fn() } as any
   );
 }
 
@@ -168,6 +169,25 @@ describe("FeasibilityService", () => {
       await expect(service.saveDraft(999, validBody)).rejects.toThrow(
         "Project not found"
       );
+    });
+
+    it("rejects overrides without a justification", async () => {
+      mocks.feasibilityRepo.findLatestByProjectId.mockResolvedValue(null);
+      const created = makeMockRun();
+      mocks.feasibilityRepo.createDraft.mockResolvedValue(created);
+
+      await expect(
+        service.saveDraft(10, {
+          ...validBody,
+          overrides: [
+            {
+              metricKey: "profitability.netProfit",
+              originalValue: 10,
+              overrideValue: 12,
+            },
+          ],
+        })
+      ).rejects.toThrow('Override "profitability.netProfit" requires a justification');
     });
   });
 

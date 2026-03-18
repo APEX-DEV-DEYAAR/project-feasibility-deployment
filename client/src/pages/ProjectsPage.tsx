@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import DeyaarLogo from "../components/DeyaarLogo";
 import WaterfallChart from "../components/WaterfallChart";
-import DonutChart from "../components/DonutChart";
 import { formatM, formatInt } from "../utils/formatters";
 import { registerUser, fetchUsers, resetUserPassword } from "../api/auth.api";
 import type { UserListItem } from "../api/auth.api";
@@ -39,6 +38,7 @@ interface ProjectsPageProps {
   onNavigateToMarketing?: () => void;
   onNavigateToCollections?: () => void;
   onNavigateToCollectionsForecast?: () => void;
+  onNavigateToSalesTracking?: () => void;
   onNavigateToBudget?: () => void;
   userRole?: UserRole;
   userName?: string;
@@ -61,6 +61,7 @@ export default function ProjectsPage({
   onNavigateToMarketing,
   onNavigateToCollections,
   onNavigateToCollectionsForecast,
+  onNavigateToSalesTracking,
   onNavigateToBudget,
   userRole,
   userName,
@@ -173,6 +174,26 @@ export default function ProjectsPage({
     return { text: "DRAFT", className: "status-draft" };
   };
 
+  const topRevenueProjects = useMemo(() => {
+    const ranked = projects
+      .filter((project): project is ProjectWithMetrics & { metrics: FeasibilityMetrics } => Boolean(project.hasFeasibility && project.metrics))
+      .sort((a, b) => (b.metrics.kpis.totalRevenue || 0) - (a.metrics.kpis.totalRevenue || 0))
+      .slice(0, 5);
+
+    const maxRevenue = ranked[0]?.metrics.kpis.totalRevenue || 0;
+
+    return ranked.map((project) => {
+      const revenue = project.metrics.kpis.totalRevenue || 0;
+      return {
+        id: project.id,
+        name: project.name,
+        revenue,
+        widthPct: maxRevenue > 0 ? (revenue / maxRevenue) * 100 : 0,
+        sharePct: portfolioMetrics.totalRevenue > 0 ? (revenue / portfolioMetrics.totalRevenue) * 100 : 0,
+      };
+    });
+  }, [projects, portfolioMetrics.totalRevenue]);
+
   return (
     <div className="app">
       {/* Top Navigation */}
@@ -217,6 +238,11 @@ export default function ProjectsPage({
               {onNavigateToCollectionsForecast && (
                 <button className="btn btn-ghost" onClick={onNavigateToCollectionsForecast} title="Collections Forecast System">
                   Collections Forecast
+                </button>
+              )}
+              {onNavigateToSalesTracking && (
+                <button className="btn btn-ghost" onClick={onNavigateToSalesTracking} title="Sales Performance Tracking">
+                  Sales Tracking
                 </button>
               )}
               {onNavigateToBudget && (
@@ -277,6 +303,11 @@ export default function ProjectsPage({
             {onNavigateToCollectionsForecast && (
               <button className="mobile-nav-item" onClick={() => { onNavigateToCollectionsForecast(); setMobileMenuOpen(false); }}>
                 Collections Forecast
+              </button>
+            )}
+            {onNavigateToSalesTracking && (
+              <button className="mobile-nav-item" onClick={() => { onNavigateToSalesTracking(); setMobileMenuOpen(false); }}>
+                Sales Tracking
               </button>
             )}
             {onNavigateToBudget && (
@@ -412,50 +443,36 @@ export default function ProjectsPage({
             
             <div className="dashboard-card">
               <div className="card-header">
-                <h3>Project Status</h3>
-                <span>Distribution by phase</span>
+                <h3>Top Revenue Projects</h3>
+                <span>Share of portfolio inflows</span>
               </div>
               <div className="card-body">
-                <div className="status-distribution">
-                  {(() => {
-                    const newCount = projects.filter(p => !p.hasFeasibility).length;
-                    const draftCount = projects.filter(p => p.hasFeasibility && p.status === "draft").length;
-                    const frozenCount = projects.filter(p => p.status === "frozen").length;
-                    const total = projects.length || 1;
-                    
-                    return (
-                      <>
-                        <div className="status-bar-item">
-                          <div className="status-bar-track">
-                            <div className="status-bar-fill new" style={{ width: `${(newCount / total) * 100}%` }} />
-                          </div>
-                          <div className="status-bar-label">
-                            <span>New</span>
-                            <strong>{newCount}</strong>
-                          </div>
+                {topRevenueProjects.length === 0 ? (
+                  <div className="chart-empty-state">
+                    No feasibility revenue available yet
+                  </div>
+                ) : (
+                  <div className="portfolio-ranking">
+                    {topRevenueProjects.map((project, idx) => (
+                      <div key={project.id} className="portfolio-ranking-row">
+                        <div className="portfolio-ranking-head">
+                          <span className="portfolio-ranking-rank">{idx + 1}</span>
+                          <span className="portfolio-ranking-name" title={project.name}>{project.name}</span>
+                          <span className="portfolio-ranking-value">AED {formatM(project.revenue)}M</span>
                         </div>
-                        <div className="status-bar-item">
-                          <div className="status-bar-track">
-                            <div className="status-bar-fill draft" style={{ width: `${(draftCount / total) * 100}%` }} />
-                          </div>
-                          <div className="status-bar-label">
-                            <span>Draft</span>
-                            <strong>{draftCount}</strong>
-                          </div>
+                        <div className="portfolio-ranking-track">
+                          <div
+                            className="portfolio-ranking-fill"
+                            style={{ width: `${project.widthPct}%` }}
+                          />
                         </div>
-                        <div className="status-bar-item">
-                          <div className="status-bar-track">
-                            <div className="status-bar-fill frozen" style={{ width: `${(frozenCount / total) * 100}%` }} />
-                          </div>
-                          <div className="status-bar-label">
-                            <span>Frozen</span>
-                            <strong>{frozenCount}</strong>
-                          </div>
+                        <div className="portfolio-ranking-meta">
+                          <span>{formatM(project.sharePct)}% of portfolio revenue</span>
                         </div>
-                      </>
-                    );
-                  })()}
-                </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

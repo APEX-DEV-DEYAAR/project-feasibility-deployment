@@ -13,6 +13,15 @@ interface SnapshotRecord {
   metrics: FeasibilityMetrics;
 }
 
+function num(value: number | null | undefined): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function projectNameOrFallback(value: string | null | undefined): string {
+  const name = typeof value === "string" ? value.trim() : "";
+  return name || "Untitled Project";
+}
+
 const CURRENT_COLS = [
   "run_id", "project_id", "version", "status", "created_at", "updated_at", "frozen_at",
   "project_name",
@@ -167,9 +176,107 @@ export class ReportingRepository {
 
   private buildSnapshot(payload: NormalizedPayload, metrics: FeasibilityMetrics): SnapshotRecord {
     return {
-      projectName: payload.projectName,
-      input: payload.input,
-      metrics,
+      projectName: projectNameOrFallback(payload?.projectName),
+      input: {
+        landArea: payload?.input?.landArea ?? null,
+        landCost: payload?.input?.landCost ?? null,
+        landPsf: payload?.input?.landPsf ?? null,
+        gfa: payload?.input?.gfa ?? null,
+        nsaResi: payload?.input?.nsaResi ?? null,
+        nsaRetail: payload?.input?.nsaRetail ?? null,
+        buaResi: payload?.input?.buaResi ?? null,
+        buaRetail: payload?.input?.buaRetail ?? null,
+        unitsResi: payload?.input?.unitsResi ?? null,
+        unitsRetail: payload?.input?.unitsRetail ?? null,
+        resiPsf: payload?.input?.resiPsf ?? null,
+        retailPsf: payload?.input?.retailPsf ?? null,
+        carParkIncome: payload?.input?.carParkIncome ?? null,
+        cofOnSalesPct: payload?.input?.cofOnSalesPct ?? null,
+        ccPsf: payload?.input?.ccPsf ?? null,
+        softPct: payload?.input?.softPct ?? null,
+        statPct: payload?.input?.statPct ?? null,
+        contPct: payload?.input?.contPct ?? null,
+        devMgmtPct: payload?.input?.devMgmtPct ?? null,
+        cofPct: payload?.input?.cofPct ?? null,
+        salesExpPct: payload?.input?.salesExpPct ?? null,
+        mktPct: payload?.input?.mktPct ?? null,
+      },
+      metrics: {
+        area: {
+          landArea: num(metrics?.area?.landArea),
+          gfa: num(metrics?.area?.gfa),
+          nsaResi: num(metrics?.area?.nsaResi),
+          nsaRetail: num(metrics?.area?.nsaRetail),
+          nsaTotal: num(metrics?.area?.nsaTotal),
+          buaResi: num(metrics?.area?.buaResi),
+          buaRetail: num(metrics?.area?.buaRetail),
+          buaTotal: num(metrics?.area?.buaTotal),
+          unitsResi: num(metrics?.area?.unitsResi),
+          unitsRetail: num(metrics?.area?.unitsRetail),
+          unitsTotal: num(metrics?.area?.unitsTotal),
+          efficiencyPct: num(metrics?.area?.efficiencyPct),
+        },
+        revenue: {
+          grossResi: num(metrics?.revenue?.grossResi),
+          cofOnSales: num(metrics?.revenue?.cofOnSales),
+          netResi: num(metrics?.revenue?.netResi),
+          retail: num(metrics?.revenue?.retail),
+          carParkIncome: num(metrics?.revenue?.carParkIncome),
+          totalInflows: num(metrics?.revenue?.totalInflows),
+          resi: num(metrics?.revenue?.resi),
+          total: num(metrics?.revenue?.total),
+        },
+        costs: {
+          landResi: num(metrics?.costs?.landResi),
+          landRetail: num(metrics?.costs?.landRetail),
+          land: num(metrics?.costs?.land),
+          ccResi: num(metrics?.costs?.ccResi),
+          ccRetail: num(metrics?.costs?.ccRetail),
+          construction: num(metrics?.costs?.construction),
+          softResi: num(metrics?.costs?.softResi),
+          softRetail: num(metrics?.costs?.softRetail),
+          soft: num(metrics?.costs?.soft),
+          statResi: num(metrics?.costs?.statResi),
+          statRetail: num(metrics?.costs?.statRetail),
+          statutory: num(metrics?.costs?.statutory),
+          contResi: num(metrics?.costs?.contResi),
+          contRetail: num(metrics?.costs?.contRetail),
+          contingency: num(metrics?.costs?.contingency),
+          devResi: num(metrics?.costs?.devResi),
+          devRetail: num(metrics?.costs?.devRetail),
+          devMgmt: num(metrics?.costs?.devMgmt),
+          cofResi: num(metrics?.costs?.cofResi),
+          cofRetail: num(metrics?.costs?.cofRetail),
+          cof: num(metrics?.costs?.cof),
+          seResi: num(metrics?.costs?.seResi),
+          seRetail: num(metrics?.costs?.seRetail),
+          salesExpense: num(metrics?.costs?.salesExpense),
+          mkResi: num(metrics?.costs?.mkResi),
+          mkRetail: num(metrics?.costs?.mkRetail),
+          marketing: num(metrics?.costs?.marketing),
+          costResi: num(metrics?.costs?.costResi),
+          costRetail: num(metrics?.costs?.costRetail),
+          total: num(metrics?.costs?.total),
+        },
+        profitability: {
+          npResi: num(metrics?.profitability?.npResi),
+          npRetail: num(metrics?.profitability?.npRetail),
+          netProfit: num(metrics?.profitability?.netProfit),
+          marginResi: num(metrics?.profitability?.marginResi),
+          marginRetail: num(metrics?.profitability?.marginRetail),
+          marginPct: num(metrics?.profitability?.marginPct),
+          cashProfit: num(metrics?.profitability?.cashProfit),
+          cashMarginPct: num(metrics?.profitability?.cashMarginPct),
+        },
+        jvShares: Array.isArray(metrics?.jvShares) ? metrics.jvShares : [],
+        kpis: {
+          totalRevenue: num(metrics?.kpis?.totalRevenue),
+          totalCost: num(metrics?.kpis?.totalCost),
+          netProfit: num(metrics?.kpis?.netProfit),
+          marginPct: num(metrics?.kpis?.marginPct),
+          totalUnits: num(metrics?.kpis?.totalUnits),
+        },
+      },
     };
   }
 
