@@ -4,17 +4,28 @@ import PrintButton from "../components/PrintButton";
 import DeyaarLogo from "../components/DeyaarLogo";
 import MobileSidebar from "../components/MobileSidebar";
 import TRow from "../components/TRow";
+import OverrideModal from "../components/OverrideModal";
 import WaterfallChart from "../components/WaterfallChart";
 import DonutChart from "../components/DonutChart";
 import CostBreakdown from "../components/CostBreakdown";
 import { PARTNER_COLORS } from "../constants";
 import { formatM, formatInt } from "../utils/formatters";
-import { calculateMetrics } from "../utils/calculations";
-import type { ClientModel, FeasibilityMetrics, ArchivedRun } from "../types";
+import { calculateMetrics, applyOverrides } from "../utils/calculations";
+import type { ClientModel, FeasibilityMetrics, ArchivedRun, MetricOverride } from "../types";
+
+interface OverrideTarget {
+  metricKey: string;
+  label: string;
+  computedValue: number;
+}
 
 interface FeasibilityPageProps {
   model: ClientModel;
   metrics: FeasibilityMetrics;
+  displayMetrics: FeasibilityMetrics;
+  overrides: MetricOverride[];
+  onSaveOverride: (override: MetricOverride) => void;
+  onRemoveOverride: (metricKey: string) => void;
   shareTotal: number;
   shareValid: boolean;
   activeSection: string;
@@ -41,6 +52,10 @@ interface FeasibilityPageProps {
 export default function FeasibilityPage({
   model: currentModel,
   metrics: currentMetrics,
+  displayMetrics: currentDisplayMetrics,
+  overrides: currentOverrides,
+  onSaveOverride,
+  onRemoveOverride,
   shareTotal,
   shareValid,
   activeSection,
@@ -65,6 +80,7 @@ export default function FeasibilityPage({
 }: FeasibilityPageProps) {
   const [showInputModal, setShowInputModal] = useState(false);
   const [viewingArchive, setViewingArchive] = useState<ArchivedRun | null>(null);
+  const [overrideTarget, setOverrideTarget] = useState<OverrideTarget | null>(null);
 
   // Build a temporary ClientModel from the archived run for metrics calculation
   const archiveModel = useMemo<ClientModel | null>(() => {
@@ -83,6 +99,7 @@ export default function FeasibilityPage({
       })),
       version: viewingArchive.version,
       status: "frozen" as const,
+      overrides: viewingArchive.overrides || [],
     };
   }, [viewingArchive]);
 
@@ -94,7 +111,82 @@ export default function FeasibilityPage({
   // Decide which data to display: archive view or current
   const isArchiveView = viewingArchive !== null;
   const model = archiveModel ?? currentModel;
-  const metrics = archiveMetrics ?? currentMetrics;
+  const computedMetrics = archiveMetrics ?? currentMetrics;
+  const activeOverrides: MetricOverride[] = isArchiveView
+    ? (viewingArchive?.overrides || [])
+    : currentOverrides;
+  const metrics = isArchiveView
+    ? applyOverrides(computedMetrics, activeOverrides)
+    : currentDisplayMetrics;
+
+  // Override map for quick lookup
+  const overrideMap = useMemo(() => {
+    const map = new Map<string, MetricOverride>();
+    for (const ov of activeOverrides) {
+      map.set(ov.metricKey, ov);
+    }
+    return map;
+  }, [activeOverrides]);
+
+  const hasOverrides = activeOverrides.length > 0;
+
+  // Helper to create override info for TRow
+  const getOverrideInfo = (metricKey: string) => ({
+    metricKey,
+    isOverridden: overrideMap.has(metricKey),
+    justification: overrideMap.get(metricKey)?.justification,
+    originalValue: overrideMap.get(metricKey)?.originalValue,
+  });
+
+  // Helper to get computed value at a dot-path
+  const getComputedValue = (metricKey: string): number => {
+    const parts = metricKey.split(".");
+    let target: unknown = computedMetrics;
+    for (const part of parts) {
+      if (target && typeof target === "object") {
+        target = (target as Record<string, unknown>)[part];
+      } else {
+        return 0;
+      }
+    }
+    return typeof target === "number" ? target : 0;
+  };
+
+  const handleMetricClick = (metricKey: string) => {
+    if (isFrozen || isArchiveView) return;
+    // Build a label from the metric key
+    const labelMap: Record<string, string> = {
+      "revenue.grossResi": "Gross Residential Sales",
+      "revenue.cofOnSales": "CoF on Sales",
+      "revenue.netResi": "Net Residential Sales",
+      "revenue.retail": "Retail Capitalised Income",
+      "revenue.carParkIncome": "Car Parking Income",
+      "revenue.totalInflows": "Total Inflows",
+      "costs.land": "Land Cost",
+      "costs.construction": "Hard Cost",
+      "costs.soft": "Soft Costs",
+      "costs.statutory": "Statutory Costs",
+      "costs.contingency": "Contingency",
+      "costs.devMgmt": "Development Mgmt",
+      "costs.cof": "COF incl. Guarantee",
+      "costs.salesExpense": "Sales Expenses",
+      "costs.marketing": "Marketing",
+      "costs.total": "Total Costs",
+      "profitability.netProfit": "Net Profit",
+      "profitability.marginPct": "Sales Margin",
+      "profitability.cashProfit": "Cash Profit",
+      "profitability.cashMarginPct": "Cash Margin",
+      "kpis.totalRevenue": "KPI: Total Revenue",
+      "kpis.totalCost": "KPI: Total Cost",
+      "kpis.netProfit": "KPI: Net Profit",
+      "kpis.marginPct": "KPI: Margin %",
+    };
+    setOverrideTarget({
+      metricKey,
+      label: labelMap[metricKey] || metricKey,
+      computedValue: getComputedValue(metricKey),
+    });
+  };
 
   const isFrozen = isArchiveView ? true : model.status === "frozen";
   const versionLabel = isArchiveView
@@ -363,6 +455,12 @@ export default function FeasibilityPage({
             <h2>Detailed Financial Analysis</h2>
             <span>Complete breakdown of revenue, costs, and area metrics</span>
           </div>
+          {hasOverrides && (
+            <div className="override-legend">
+              <span className="override-legend-dot" />
+              <span>Values in amber have been manually adjusted</span>
+            </div>
+          )}
 
           {/* Revenue / Inflows */}
           <div className="data-table-block">
@@ -379,18 +477,18 @@ export default function FeasibilityPage({
                   <div className="th">Total</div>
                   <div className="th">Calculation Basis</div>
                 </div>
-                <TRow label="Gross Residential Sales" resi={`AED ${formatM(metrics.revenue.grossResi)}M`} retail="—" total={`AED ${formatM(metrics.revenue.grossResi)}M`} note={`AED ${model.input.resiPsf} psf × ${formatInt(metrics.area.nsaResi)} sq ft NSA`} />
+                <TRow label="Gross Residential Sales" resi={`AED ${formatM(metrics.revenue.grossResi)}M`} retail="—" total={`AED ${formatM(metrics.revenue.grossResi)}M`} note={`AED ${model.input.resiPsf} psf × ${formatInt(metrics.area.nsaResi)} sq ft NSA`} overrideInfo={getOverrideInfo("revenue.grossResi")} onTotalClick={!isFrozen && !isArchiveView ? handleMetricClick : undefined} />
                 {metrics.revenue.cofOnSales > 0 && (
-                  <TRow label="Less: CoF on Sales" resi={`(AED ${formatM(metrics.revenue.cofOnSales)}M)`} retail="—" total={`(AED ${formatM(metrics.revenue.cofOnSales)}M)`} note={`${model.input.cofOnSalesPct}% of Gross Resi Sales`} className="deduction" />
+                  <TRow label="Less: CoF on Sales" resi={`(AED ${formatM(metrics.revenue.cofOnSales)}M)`} retail="—" total={`(AED ${formatM(metrics.revenue.cofOnSales)}M)`} note={`${model.input.cofOnSalesPct}% of Gross Resi Sales`} className="deduction" overrideInfo={getOverrideInfo("revenue.cofOnSales")} onTotalClick={!isFrozen && !isArchiveView ? handleMetricClick : undefined} />
                 )}
                 {metrics.revenue.cofOnSales > 0 && (
-                  <TRow label="Net Residential Sales" resi={`AED ${formatM(metrics.revenue.netResi)}M`} retail="—" total={`AED ${formatM(metrics.revenue.netResi)}M`} note="Gross Sales − CoF on Sales" className="sub" />
+                  <TRow label="Net Residential Sales" resi={`AED ${formatM(metrics.revenue.netResi)}M`} retail="—" total={`AED ${formatM(metrics.revenue.netResi)}M`} note="Gross Sales − CoF on Sales" className="sub" overrideInfo={getOverrideInfo("revenue.netResi")} onTotalClick={!isFrozen && !isArchiveView ? handleMetricClick : undefined} />
                 )}
-                <TRow label="Retail Capitalised Income" resi="—" retail={`AED ${formatM(metrics.revenue.retail)}M`} total={`AED ${formatM(metrics.revenue.retail)}M`} note={`AED ${model.input.retailPsf} psf × ${formatInt(metrics.area.nsaRetail)} sq ft NSA`} />
+                <TRow label="Retail Capitalised Income" resi="—" retail={`AED ${formatM(metrics.revenue.retail)}M`} total={`AED ${formatM(metrics.revenue.retail)}M`} note={`AED ${model.input.retailPsf} psf × ${formatInt(metrics.area.nsaRetail)} sq ft NSA`} overrideInfo={getOverrideInfo("revenue.retail")} onTotalClick={!isFrozen && !isArchiveView ? handleMetricClick : undefined} />
                 {metrics.revenue.carParkIncome > 0 && (
-                  <TRow label="Car Parking Income" resi="—" retail="—" total={`AED ${formatM(metrics.revenue.carParkIncome)}M`} note="Direct input" />
+                  <TRow label="Car Parking Income" resi="—" retail="—" total={`AED ${formatM(metrics.revenue.carParkIncome)}M`} note="Direct input" overrideInfo={getOverrideInfo("revenue.carParkIncome")} onTotalClick={!isFrozen && !isArchiveView ? handleMetricClick : undefined} />
                 )}
-                <TRow label="Total Inflows" resi={`AED ${formatM(metrics.revenue.netResi)}M`} retail={`AED ${formatM(metrics.revenue.retail + metrics.revenue.carParkIncome)}M`} total={`AED ${formatM(metrics.revenue.totalInflows)}M`} note="Total project inflows" className="total" />
+                <TRow label="Total Inflows" resi={`AED ${formatM(metrics.revenue.netResi)}M`} retail={`AED ${formatM(metrics.revenue.retail + metrics.revenue.carParkIncome)}M`} total={`AED ${formatM(metrics.revenue.totalInflows)}M`} note="Total project inflows" className="total" overrideInfo={getOverrideInfo("revenue.totalInflows")} onTotalClick={!isFrozen && !isArchiveView ? handleMetricClick : undefined} />
               </div>
             </div>
           </div>
@@ -410,26 +508,26 @@ export default function FeasibilityPage({
                   <div className="th">Total</div>
                   <div className="th">Calculation Basis</div>
                 </div>
-                <TRow label="Land Cost" resi={`AED ${formatM(metrics.costs.landResi)}M`} retail={`AED ${formatM(metrics.costs.landRetail)}M`} total={`AED ${formatM(metrics.costs.land)}M`} note={Number(model.input.landPsf) > 0 ? `AED ${model.input.landPsf} psf × ${formatInt(metrics.area.gfa)} sq ft GFA` : "Direct land cost input"} />
-                <TRow label="Hard Cost" resi={`AED ${formatM(metrics.costs.ccResi)}M`} retail={`AED ${formatM(metrics.costs.ccRetail)}M`} total={`AED ${formatM(metrics.costs.construction)}M`} note={`AED ${model.input.ccPsf} psf × BUA`} />
-                <TRow label="Soft Costs" resi={`AED ${formatM(metrics.costs.softResi)}M`} retail={`AED ${formatM(metrics.costs.softRetail)}M`} total={`AED ${formatM(metrics.costs.soft)}M`} note={`${model.input.softPct}% of Hard Cost`} />
-                <TRow label="Statutory Costs" resi={`AED ${formatM(metrics.costs.statResi)}M`} retail={`AED ${formatM(metrics.costs.statRetail)}M`} total={`AED ${formatM(metrics.costs.statutory)}M`} note={`${model.input.statPct}% of Hard Cost`} />
-                <TRow label="Contingency" resi={`AED ${formatM(metrics.costs.contResi)}M`} retail={`AED ${formatM(metrics.costs.contRetail)}M`} total={`AED ${formatM(metrics.costs.contingency)}M`} note={`${model.input.contPct}% of CC + Soft`} />
+                <TRow label="Land Cost" resi={`AED ${formatM(metrics.costs.landResi)}M`} retail={`AED ${formatM(metrics.costs.landRetail)}M`} total={`AED ${formatM(metrics.costs.land)}M`} note={Number(model.input.landPsf) > 0 ? `AED ${model.input.landPsf} psf × ${formatInt(metrics.area.gfa)} sq ft GFA` : "Direct land cost input"} overrideInfo={getOverrideInfo("costs.land")} onTotalClick={!isFrozen && !isArchiveView ? handleMetricClick : undefined} />
+                <TRow label="Hard Cost" resi={`AED ${formatM(metrics.costs.ccResi)}M`} retail={`AED ${formatM(metrics.costs.ccRetail)}M`} total={`AED ${formatM(metrics.costs.construction)}M`} note={`AED ${model.input.ccPsf} psf × BUA`} overrideInfo={getOverrideInfo("costs.construction")} onTotalClick={!isFrozen && !isArchiveView ? handleMetricClick : undefined} />
+                <TRow label="Soft Costs" resi={`AED ${formatM(metrics.costs.softResi)}M`} retail={`AED ${formatM(metrics.costs.softRetail)}M`} total={`AED ${formatM(metrics.costs.soft)}M`} note={`${model.input.softPct}% of Hard Cost`} overrideInfo={getOverrideInfo("costs.soft")} onTotalClick={!isFrozen && !isArchiveView ? handleMetricClick : undefined} />
+                <TRow label="Statutory Costs" resi={`AED ${formatM(metrics.costs.statResi)}M`} retail={`AED ${formatM(metrics.costs.statRetail)}M`} total={`AED ${formatM(metrics.costs.statutory)}M`} note={`${model.input.statPct}% of Hard Cost`} overrideInfo={getOverrideInfo("costs.statutory")} onTotalClick={!isFrozen && !isArchiveView ? handleMetricClick : undefined} />
+                <TRow label="Contingency" resi={`AED ${formatM(metrics.costs.contResi)}M`} retail={`AED ${formatM(metrics.costs.contRetail)}M`} total={`AED ${formatM(metrics.costs.contingency)}M`} note={`${model.input.contPct}% of CC + Soft`} overrideInfo={getOverrideInfo("costs.contingency")} onTotalClick={!isFrozen && !isArchiveView ? handleMetricClick : undefined} />
                 {metrics.costs.devMgmt > 0 && (
-                  <TRow label="Development Mgmt" resi={`AED ${formatM(metrics.costs.devResi)}M`} retail={`AED ${formatM(metrics.costs.devRetail)}M`} total={`AED ${formatM(metrics.costs.devMgmt)}M`} note={`${model.input.devMgmtPct}% of Gross Resi Sales`} />
+                  <TRow label="Development Mgmt" resi={`AED ${formatM(metrics.costs.devResi)}M`} retail={`AED ${formatM(metrics.costs.devRetail)}M`} total={`AED ${formatM(metrics.costs.devMgmt)}M`} note={`${model.input.devMgmtPct}% of Gross Resi Sales`} overrideInfo={getOverrideInfo("costs.devMgmt")} onTotalClick={!isFrozen && !isArchiveView ? handleMetricClick : undefined} />
                 )}
                 {metrics.costs.cof > 0 && (
-                  <TRow label="COF incl. Guarantee" resi={`AED ${formatM(metrics.costs.cofResi)}M`} retail={`AED ${formatM(metrics.costs.cofRetail)}M`} total={`AED ${formatM(metrics.costs.cof)}M`} note={`${model.input.cofPct}% of Total Revenue`} />
+                  <TRow label="COF incl. Guarantee" resi={`AED ${formatM(metrics.costs.cofResi)}M`} retail={`AED ${formatM(metrics.costs.cofRetail)}M`} total={`AED ${formatM(metrics.costs.cof)}M`} note={`${model.input.cofPct}% of Total Revenue`} overrideInfo={getOverrideInfo("costs.cof")} onTotalClick={!isFrozen && !isArchiveView ? handleMetricClick : undefined} />
                 )}
-                <TRow label="Sales Expenses" resi={`AED ${formatM(metrics.costs.seResi)}M`} retail={`AED ${formatM(metrics.costs.seRetail)}M`} total={`AED ${formatM(metrics.costs.salesExpense)}M`} note={`${model.input.salesExpPct}% of Gross Resi Sales`} />
-                <TRow label="Marketing" resi={`AED ${formatM(metrics.costs.mkResi)}M`} retail={`AED ${formatM(metrics.costs.mkRetail)}M`} total={`AED ${formatM(metrics.costs.marketing)}M`} note={`${model.input.mktPct}% of Gross Resi Sales`} />
-                <TRow label="Total Costs" resi={`AED ${formatM(metrics.costs.costResi)}M`} retail={`AED ${formatM(metrics.costs.costRetail)}M`} total={`AED ${formatM(metrics.costs.total)}M`} note="Sum of all cost categories" className="sub" />
-                <TRow label="Net Profit" resi={`AED ${formatM(metrics.profitability.npResi)}M`} retail={`AED ${formatM(metrics.profitability.npRetail)}M`} total={`AED ${formatM(metrics.profitability.netProfit)}M`} note="Total Inflows − Total Costs" className="profit" />
-                <TRow label="Sales Margin" resi={`${formatM(metrics.profitability.marginResi)}%`} retail={`${formatM(metrics.profitability.marginRetail)}%`} total={`${formatM(metrics.profitability.marginPct)}%`} note="Net Profit / Revenue" />
+                <TRow label="Sales Expenses" resi={`AED ${formatM(metrics.costs.seResi)}M`} retail={`AED ${formatM(metrics.costs.seRetail)}M`} total={`AED ${formatM(metrics.costs.salesExpense)}M`} note={`${model.input.salesExpPct}% of Gross Resi Sales`} overrideInfo={getOverrideInfo("costs.salesExpense")} onTotalClick={!isFrozen && !isArchiveView ? handleMetricClick : undefined} />
+                <TRow label="Marketing" resi={`AED ${formatM(metrics.costs.mkResi)}M`} retail={`AED ${formatM(metrics.costs.mkRetail)}M`} total={`AED ${formatM(metrics.costs.marketing)}M`} note={`${model.input.mktPct}% of Gross Resi Sales`} overrideInfo={getOverrideInfo("costs.marketing")} onTotalClick={!isFrozen && !isArchiveView ? handleMetricClick : undefined} />
+                <TRow label="Total Costs" resi={`AED ${formatM(metrics.costs.costResi)}M`} retail={`AED ${formatM(metrics.costs.costRetail)}M`} total={`AED ${formatM(metrics.costs.total)}M`} note="Sum of all cost categories" className="sub" overrideInfo={getOverrideInfo("costs.total")} onTotalClick={!isFrozen && !isArchiveView ? handleMetricClick : undefined} />
+                <TRow label="Net Profit" resi={`AED ${formatM(metrics.profitability.npResi)}M`} retail={`AED ${formatM(metrics.profitability.npRetail)}M`} total={`AED ${formatM(metrics.profitability.netProfit)}M`} note="Total Inflows − Total Costs" className="profit" overrideInfo={getOverrideInfo("profitability.netProfit")} onTotalClick={!isFrozen && !isArchiveView ? handleMetricClick : undefined} />
+                <TRow label="Sales Margin" resi={`${formatM(metrics.profitability.marginResi)}%`} retail={`${formatM(metrics.profitability.marginRetail)}%`} total={`${formatM(metrics.profitability.marginPct)}%`} note="Net Profit / Revenue" overrideInfo={getOverrideInfo("profitability.marginPct")} onTotalClick={!isFrozen && !isArchiveView ? handleMetricClick : undefined} />
                 {metrics.profitability.cashProfit > 0 && (
                   <>
-                    <TRow label="Cash Profit" resi="—" retail="—" total={`AED ${formatM(metrics.profitability.cashProfit)}M`} note="Net Profit + CoF on Sales (recovered post-handover)" className="profit" />
-                    <TRow label="Cash Margin" resi="—" retail="—" total={`${formatM(metrics.profitability.cashMarginPct)}%`} note="Cash Profit / Total Revenue" />
+                    <TRow label="Cash Profit" resi="—" retail="—" total={`AED ${formatM(metrics.profitability.cashProfit)}M`} note="Net Profit + CoF on Sales (recovered post-handover)" className="profit" overrideInfo={getOverrideInfo("profitability.cashProfit")} onTotalClick={!isFrozen && !isArchiveView ? handleMetricClick : undefined} />
+                    <TRow label="Cash Margin" resi="—" retail="—" total={`${formatM(metrics.profitability.cashMarginPct)}%`} note="Cash Profit / Total Revenue" overrideInfo={getOverrideInfo("profitability.cashMarginPct")} onTotalClick={!isFrozen && !isArchiveView ? handleMetricClick : undefined} />
                   </>
                 )}
               </div>
@@ -614,6 +712,19 @@ export default function FeasibilityPage({
           </section>
         )}
       </main>
+
+      {/* Override Modal */}
+      {overrideTarget && !isFrozen && !isArchiveView && (
+        <OverrideModal
+          metricKey={overrideTarget.metricKey}
+          label={overrideTarget.label}
+          computedValue={overrideTarget.computedValue}
+          existingOverride={overrideMap.get(overrideTarget.metricKey)}
+          onSave={(ov) => { onSaveOverride(ov); setOverrideTarget(null); }}
+          onRemove={(key) => { onRemoveOverride(key); setOverrideTarget(null); }}
+          onClose={() => setOverrideTarget(null)}
+        />
+      )}
 
       <footer className="status-bar">
         <div className="status-left">

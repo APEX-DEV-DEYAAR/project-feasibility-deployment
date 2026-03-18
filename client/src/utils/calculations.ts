@@ -1,4 +1,4 @@
-import type { ClientModel, ClientInputModel, ClientPartner, FeasibilityMetrics, PartnerProfit } from "../types";
+import type { ClientModel, ClientInputModel, ClientPartner, FeasibilityMetrics, PartnerProfit, MetricOverride } from "../types";
 
 export const INPUT_KEYS = [
   "landArea", "landCost", "landPsf", "gfa", "nsaResi", "nsaRetail", "buaResi", "buaRetail",
@@ -21,6 +21,7 @@ export function emptyModel(projectName = "", projectId: number | null = null): C
     partners: [{ name: "", share: "" }],
     version: 0,
     status: "draft",
+    overrides: [],
   };
 }
 
@@ -43,6 +44,7 @@ export interface HydrateOptions {
   version: number | null;
   status: "draft" | "frozen";
   payload: Record<string, unknown>;
+  overrides?: MetricOverride[];
 }
 
 export function hydrateModelFromRun(opts: HydrateOptions): ClientModel {
@@ -71,6 +73,7 @@ export function hydrateModelFromRun(opts: HydrateOptions): ClientModel {
     partners: partners.length ? partners : [{ name: "", share: "" }],
     version: opts.version,
     status: opts.status,
+    overrides: opts.overrides || [],
   };
 }
 
@@ -90,6 +93,7 @@ export function serializeModelForSave(model: ClientModel): Record<string, unknow
     projectName: String(model.projectName ?? "").trim(),
     input: cleanInput,
     partners: cleanPartners,
+    overrides: model.overrides || [],
   };
 }
 
@@ -205,4 +209,30 @@ export function calculateMetrics(model: ClientModel): FeasibilityMetrics {
     partnerProfit,
     kpis: { totalRevenue: totalInflows, totalCost: costTotal, netProfit, marginPct, totalUnits: unitsTotal },
   };
+}
+
+export function applyOverrides(
+  metrics: FeasibilityMetrics,
+  overrides: MetricOverride[]
+): FeasibilityMetrics {
+  if (!overrides || overrides.length === 0) return metrics;
+  const result = JSON.parse(JSON.stringify(metrics)) as FeasibilityMetrics;
+  for (const ov of overrides) {
+    const parts = ov.metricKey.split(".");
+    let target: Record<string, unknown> = result as unknown as Record<string, unknown>;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const next = target[parts[i]];
+      if (next && typeof next === "object") {
+        target = next as Record<string, unknown>;
+      } else {
+        target = {};
+        break;
+      }
+    }
+    const lastKey = parts[parts.length - 1];
+    if (lastKey in target) {
+      target[lastKey] = ov.overrideValue;
+    }
+  }
+  return result;
 }

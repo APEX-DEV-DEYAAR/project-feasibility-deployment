@@ -16,6 +16,11 @@ function num(value: number | null | undefined): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
+function projectNameOrFallback(value: string | null | undefined): string {
+  const name = typeof value === "string" ? value.trim() : "";
+  return name || "Untitled Project";
+}
+
 const RUN_INPUT_COLS = [
   "run_id", "project_name", "land_area", "land_cost", "land_psf", "gfa", "nsa_resi", "nsa_retail",
   "bua_resi", "bua_retail", "units_resi", "units_retail", "resi_psf", "retail_psf", "car_park_income",
@@ -84,7 +89,11 @@ export class FeasibilityRelationalRepository {
     );
 
     for (const run of currentRuns.rows) {
-      await this.syncRun(run);
+      try {
+        await this.syncRun(run);
+      } catch (err) {
+        console.warn(`  Backfill: skipped run ${run.id} — ${(err as Error).message}`);
+      }
     }
 
     const archivedRuns = await this.db.query<ArchivedRun>(
@@ -101,7 +110,11 @@ export class FeasibilityRelationalRepository {
     );
 
     for (const archive of archivedRuns.rows) {
-      await this.syncArchive(archive);
+      try {
+        await this.syncArchive(archive);
+      } catch (err) {
+        console.warn(`  Backfill: skipped archive ${archive.id} — ${(err as Error).message}`);
+      }
     }
   }
 
@@ -211,7 +224,7 @@ export class FeasibilityRelationalRepository {
   private buildSnapshot(payload: NormalizedPayload, metrics: FeasibilityMetrics): RunSnapshot {
     return {
       payload: {
-        projectName: payload?.projectName ?? "",
+        projectName: projectNameOrFallback(payload?.projectName),
         input: {
           landArea: payload?.input?.landArea ?? null,
           landCost: payload?.input?.landCost ?? null,

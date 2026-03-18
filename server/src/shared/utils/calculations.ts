@@ -1,4 +1,4 @@
-import type { NormalizedPayload, FeasibilityMetrics, JvShare } from "../types/index.js";
+import type { NormalizedPayload, FeasibilityMetrics, JvShare, MetricOverride } from "../types/index.js";
 
 export const INPUT_KEYS = [
   "landArea", "landCost", "landPsf", "gfa", "nsaResi", "nsaRetail", "buaResi", "buaRetail",
@@ -152,4 +152,30 @@ export function calculateMetrics(payload: Record<string, unknown> | NormalizedPa
     jvShares,
     kpis: { totalRevenue: totalInflows, totalCost: costTotal, netProfit, marginPct, totalUnits: unitsTotal },
   };
+}
+
+export function applyOverrides(
+  metrics: FeasibilityMetrics,
+  overrides: MetricOverride[]
+): FeasibilityMetrics {
+  if (!overrides || overrides.length === 0) return metrics;
+  const result = JSON.parse(JSON.stringify(metrics)) as FeasibilityMetrics;
+  for (const ov of overrides) {
+    const parts = ov.metricKey.split(".");
+    let target: Record<string, unknown> = result as unknown as Record<string, unknown>;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const next = target[parts[i]];
+      if (next && typeof next === "object") {
+        target = next as Record<string, unknown>;
+      } else {
+        target = {};
+        break;
+      }
+    }
+    const lastKey = parts[parts.length - 1];
+    if (lastKey in target) {
+      target[lastKey] = ov.overrideValue;
+    }
+  }
+  return result;
 }

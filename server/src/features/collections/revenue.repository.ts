@@ -2,6 +2,7 @@ import type { BaseAdapter } from "../../shared/db/adapters/base.adapter.js";
 import type {
   ProjectMonthlyCollections,
   SaveMonthlyCollectionsPayload,
+  BvaRevenueAggregate,
 } from "../../shared/types/index.js";
 
 const COLLECTIONS_INSERT_COLS = [
@@ -120,6 +121,29 @@ export class CollectionsRepository {
       [projectId, year, month]
     );
     return rowCount > 0;
+  }
+
+  async getBvaRevenueAggregate(projectId: number): Promise<BvaRevenueAggregate | null> {
+    const { rows } = await this.db.query<BvaRevenueAggregate>(
+      `SELECT
+         COALESCE(SUM(budget_amount), 0)    AS "budget",
+         COALESCE(SUM(actual_amount), 0)     AS "actual",
+         COALESCE(SUM(projected_amount), 0)  AS "projected",
+         COALESCE(SUM(
+           CASE WHEN actual_amount IS NOT NULL AND actual_amount != 0
+                THEN actual_amount
+                ELSE COALESCE(projected_amount, 0)
+           END
+         ), 0) AS "blended",
+         MAX(CASE WHEN actual_amount IS NOT NULL OR projected_amount IS NOT NULL
+                  THEN updated_at END) AS "lastActivity"
+       FROM project_monthly_revenue
+       WHERE project_id = ${this.db.placeholder(1)}`,
+      [projectId]
+    );
+    if (rows.length === 0) return null;
+    // If no revenue rows exist at all, budget/actual/projected/blended will all be 0
+    return rows[0];
   }
 
   async clearProjectCollections(projectId: number): Promise<number> {

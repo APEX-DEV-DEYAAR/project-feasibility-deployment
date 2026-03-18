@@ -1,5 +1,6 @@
 import { CostTrackingRepository } from "./cost-tracking.repository.js";
 import { CollectionsRepository } from "../collections/revenue.repository.js";
+import type { SalesRepository } from "../sales-tracking/sales.repository.js";
 import type {
   CostCategory,
   ProjectMonthlyCost,
@@ -11,6 +12,7 @@ import type {
   TeamCode,
   BudgetVsActualRow,
   BudgetVsActualsResponse,
+  BvaCostAggregate,
 } from "../../shared/types/index.js";
 
 const MONTH_NAMES = [
@@ -21,7 +23,8 @@ const MONTH_NAMES = [
 export class CostTrackingService {
   constructor(
     private readonly repo: CostTrackingRepository,
-    private readonly collectionsRepo?: CollectionsRepository
+    private readonly collectionsRepo?: CollectionsRepository,
+    private readonly salesRepo?: SalesRepository
   ) {}
 
   // ---- Categories ----
@@ -201,69 +204,99 @@ export class CostTrackingService {
 
   // ---- Budget vs Actuals ----
 
-  async getBudgetVsActuals(projectId: number, year: number): Promise<BudgetVsActualsResponse> {
-    const costs = await this.repo.getMonthlyCosts(projectId, year);
-    const categories = await this.repo.getCategories();
+  async getBudgetVsActuals(projectId: number): Promise<BudgetVsActualsResponse> {
+    // Run cost, revenue, and sales aggregation in parallel
+    // Sales table may not exist yet (migration pending), so catch gracefully
+    const safeSalesAggregate = this.salesRepo
+      ? this.salesRepo.getBvaSalesAggregate(projectId).catch(() => null)
+      : Promise.resolve(null);
+
+    const [costAggregates, revenueAggregate, salesAggregate] = await Promise.all([
+      this.repo.getBvaCostAggregates(projectId),
+      this.collectionsRepo?.getBvaRevenueAggregate(projectId) ?? null,
+      safeSalesAggregate,
+    ]);
 
     const rows: BudgetVsActualRow[] = [];
 
-    // Group costs by category
-    // Blended = per month: use actual if present, else projected
-    for (const cat of categories) {
-      const catCosts = costs.filter(c => c.categoryId === cat.id);
-      const budget = catCosts.reduce((s, c) => s + (c.budgetAmount ?? 0), 0);
-      const actual = catCosts.reduce((s, c) => s + (c.actualAmount ?? 0), 0);
-      const projected = catCosts.reduce((s, c) => s + (c.projectedAmount ?? 0), 0);
-      const blended = catCosts.reduce((s, c) => {
-        return s + (c.actualAmount != null && c.actualAmount !== 0
-          ? c.actualAmount
-          : (c.projectedAmount ?? 0));
-      }, 0);
-      const variance = budget - blended;
-      const variancePct = budget !== 0 ? (variance / budget) * 100 : 0;
+    // Build team activity from the same aggregated data — no extra DB call
+    const teamActivity: Record<string, string | null> = {
+      commercial: null,
+      sales: null,
+      marketing: null,
+      collections: null,
+      "sales-tracking": null,
+    };
+
+    // Cost rows — already aggregated by category in SQL
+    for (const agg of costAggregates) {
+      const variance = agg.budget - agg.blended;
+      const variancePct = agg.budget !== 0 ? (variance / agg.budget) * 100 : 0;
 
       rows.push({
-        lineItem: cat.name,
+        lineItem: agg.categoryName,
         type: "cost",
-        team: cat.team,
-        budget,
-        actual,
-        projected,
-        blended,
+        team: agg.team,
+        budget: agg.budget,
+        actual: agg.actual,
+        projected: agg.projected,
+        blended: agg.blended,
         variance,
         variancePct,
       });
+
+      // Track latest activity per team
+      if (agg.lastActivity) {
+        const current = teamActivity[agg.team];
+        if (!current || agg.lastActivity > current) {
+          teamActivity[agg.team] = agg.lastActivity;
+        }
+      }
     }
 
-    // Collections team
-    if (this.collectionsRepo) {
-      const collectionsData = await this.collectionsRepo.getMonthlyCollections(projectId, year);
-      const revBudget = collectionsData.reduce((s, r) => s + (r.budgetAmount ?? 0), 0);
-      const revActual = collectionsData.reduce((s, r) => s + (r.actualAmount ?? 0), 0);
-      const revProjected = collectionsData.reduce((s, r) => s + (r.projectedAmount ?? 0), 0);
-      const revBlended = collectionsData.reduce((s, r) => {
-        return s + (r.actualAmount != null && r.actualAmount !== 0
-          ? r.actualAmount
-          : (r.projectedAmount ?? 0));
-      }, 0);
-      const revVariance = revBlended - revBudget; // Collections: blended > budget = good
-      const revVariancePct = revBudget !== 0 ? (revVariance / revBudget) * 100 : 0;
+    // Sales performance row (TSV actual vs projected)
+    if (salesAggregate) {
+      const salesVariance = salesAggregate.blended - salesAggregate.budget;
+      const salesVariancePct = salesAggregate.budget !== 0
+        ? (salesVariance / salesAggregate.budget) * 100
+        : 0;
 
       rows.push({
-        lineItem: "Gross Residential Sales",
+        lineItem: "Sales Performance (TSV)",
+        type: "sales",
+        team: "sales-tracking",
+        budget: salesAggregate.budget,
+        actual: salesAggregate.actual,
+        projected: salesAggregate.projected,
+        blended: salesAggregate.blended,
+        variance: salesVariance,
+        variancePct: salesVariancePct,
+      });
+
+      teamActivity["sales-tracking"] = salesAggregate.lastActivity;
+    }
+
+    // Collections row
+    if (revenueAggregate) {
+      const revVariance = revenueAggregate.blended - revenueAggregate.budget;
+      const revVariancePct = revenueAggregate.budget !== 0
+        ? (revVariance / revenueAggregate.budget) * 100
+        : 0;
+
+      rows.push({
+        lineItem: "Collections",
         type: "revenue",
         team: "collections",
-        budget: revBudget,
-        actual: revActual,
-        projected: revProjected,
-        blended: revBlended,
+        budget: revenueAggregate.budget,
+        actual: revenueAggregate.actual,
+        projected: revenueAggregate.projected,
+        blended: revenueAggregate.blended,
         variance: revVariance,
         variancePct: revVariancePct,
       });
-    }
 
-    // Fetch team last activity timestamps
-    const teamActivity = await this.repo.getTeamLastActivity(projectId, year);
+      teamActivity.collections = revenueAggregate.lastActivity;
+    }
 
     return { rows, teamActivity };
   }

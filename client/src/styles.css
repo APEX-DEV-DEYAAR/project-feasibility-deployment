@@ -10,6 +10,7 @@
 @import url('./styles/executive-dashboard.css');
 @import url('./styles/input-modal.css');
 @import url('./styles/commercial-team.css');
+@import url('./styles/overrides.css');
 
 /* ============================================
    OFFICIAL DEYAAR FONTS
@@ -1416,6 +1417,85 @@ input:focus {
 .status-bar-label strong {
   color: #3D2914;
   font-weight: 600;
+}
+
+.chart-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  color: #8a7b68;
+  font-size: 14px;
+  text-align: center;
+}
+
+.portfolio-ranking {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.portfolio-ranking-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.portfolio-ranking-head {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.portfolio-ranking-rank {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #3D2914;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.portfolio-ranking-name {
+  min-width: 0;
+  color: #3D2914;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.portfolio-ranking-value {
+  color: #b85628;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.portfolio-ranking-track {
+  height: 10px;
+  background: #f5ecd9;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.portfolio-ranking-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #d26935 0%, #3d2914 100%);
+}
+
+.portfolio-ranking-meta {
+  display: flex;
+  justify-content: flex-end;
+  color: #8a7b68;
+  font-size: 11px;
+  font-weight: 500;
 }
 
 /* Top Performers */

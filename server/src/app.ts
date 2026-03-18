@@ -9,7 +9,9 @@ import type { ProjectService } from "./features/project/project.service.js";
 import type { FeasibilityService } from "./features/feasibility/feasibility.service.js";
 import type { CostTrackingController } from "./features/cost-tracking/cost-tracking.controller.js";
 import type { CollectionsController } from "./features/collections/revenue.controller.js";
+import type { SalesController } from "./features/sales-tracking/sales.controller.js";
 import type { CollectionsForecastController } from "./features/collections-forecast/collections-forecast.controller.js";
+import type { CfoDashboardController } from "./features/cfo-dashboard/cfo-dashboard.controller.js";
 import type { AuthService } from "./features/auth/auth.service.js";
 import type { AuditLogRepository } from "./shared/middleware/audit-log.repository.js";
 
@@ -18,7 +20,9 @@ interface Services {
   feasibilityService: FeasibilityService;
   costTrackingController: CostTrackingController;
   collectionsController: CollectionsController;
+  salesController: SalesController;
   collectionsForecastController: CollectionsForecastController;
+  cfoDashboardController: CfoDashboardController;
   authService: AuthService;
   auditLogRepo: AuditLogRepository;
 }

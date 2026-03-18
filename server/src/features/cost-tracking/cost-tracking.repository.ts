@@ -6,6 +6,7 @@ import type {
   CostAnnualSummaryItem,
   SaveMonthlyCostPayload,
   TeamCode,
+  BvaCostAggregate,
 } from "../../shared/types/index.js";
 
 const COST_INSERT_COLS = [
@@ -312,11 +313,41 @@ export class CostTrackingRepository {
     return this.bulkSaveMonthlyCosts(payloads);
   }
 
+  // ---- Budget vs Actuals aggregation ----
+
+  async getBvaCostAggregates(projectId: number): Promise<BvaCostAggregate[]> {
+    const { rows } = await this.db.query<BvaCostAggregate>(
+      `SELECT
+         cc.id          AS "categoryId",
+         cc.name        AS "categoryName",
+         cc.code        AS "categoryCode",
+         cc.team        AS "team",
+         COALESCE(SUM(pmc.budget_amount), 0)    AS "budget",
+         COALESCE(SUM(pmc.actual_amount), 0)     AS "actual",
+         COALESCE(SUM(pmc.projected_amount), 0)  AS "projected",
+         COALESCE(SUM(
+           CASE WHEN pmc.actual_amount IS NOT NULL AND pmc.actual_amount != 0
+                THEN pmc.actual_amount
+                ELSE COALESCE(pmc.projected_amount, 0)
+           END
+         ), 0) AS "blended",
+         MAX(CASE WHEN pmc.actual_amount IS NOT NULL OR pmc.projected_amount IS NOT NULL
+                  THEN pmc.updated_at END) AS "lastActivity"
+       FROM cost_categories cc
+       LEFT JOIN project_monthly_costs pmc
+         ON pmc.category_id = cc.id
+         AND pmc.project_id = ${this.db.placeholder(1)}
+       GROUP BY cc.id, cc.name, cc.code, cc.team, cc.display_order
+       ORDER BY cc.display_order`,
+      [projectId]
+    );
+    return rows;
+  }
+
   // ---- Team Activity ----
 
   async getTeamLastActivity(
-    projectId: number,
-    year: number
+    projectId: number
   ): Promise<Record<string, string | null>> {
     // Cost team activity (commercial, sales, marketing)
     const { rows: costActivity } = await this.db.query<{ team: string; lastActivity: string }>(
@@ -324,10 +355,9 @@ export class CostTrackingRepository {
        FROM project_monthly_costs pmc
        JOIN cost_categories cc ON cc.id = pmc.category_id
        WHERE pmc.project_id = ${this.db.placeholder(1)}
-         AND pmc.year = ${this.db.placeholder(2)}
          AND (pmc.actual_amount IS NOT NULL OR pmc.projected_amount IS NOT NULL)
        GROUP BY cc.team`,
-      [projectId, year]
+      [projectId]
     );
 
     // Revenue team activity (collections)
@@ -335,9 +365,8 @@ export class CostTrackingRepository {
       `SELECT MAX(updated_at) AS "lastActivity"
        FROM project_monthly_revenue
        WHERE project_id = ${this.db.placeholder(1)}
-         AND year = ${this.db.placeholder(2)}
          AND (actual_amount IS NOT NULL OR projected_amount IS NOT NULL)`,
-      [projectId, year]
+      [projectId]
     );
 
     const result: Record<string, string | null> = {
