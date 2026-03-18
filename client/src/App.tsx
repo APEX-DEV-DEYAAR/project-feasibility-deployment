@@ -50,8 +50,8 @@ interface ToastItem {
 // ---- Role-based screen access ----
 // admin sees everything, other roles see specific screens
 const ROLE_SCREENS: Record<UserRole, Set<string>> = {
-  admin: new Set(["projects", "feasibility", "portfolio", "commercial", "sales", "salesTracking", "marketing", "collections", "budget"]),
-  commercial: new Set(["projects", "feasibility", "portfolio", "commercial", "budget"]),
+  admin: new Set(["projects", "feasibility", "portfolio", "commercial", "salesTracking", "sales", "marketing", "collections", "budget"]),
+  commercial: new Set([ "commercial"]),
   sales: new Set(["sales", "salesTracking"]),
   collections: new Set(["collections"]),
   finance: new Set(["projects", "feasibility", "portfolio", "salesTracking", "budget"]),
@@ -112,6 +112,7 @@ export default function App() {
 function getDefaultScreen(role: UserRole): "projects" | "feasibility" | "portfolio" | "commercial" | "sales" | "salesTracking" | "marketing" | "collections" | "collectionsForecast" | "budget" {
   const allowed = ROLE_SCREENS[role];
   if (allowed.has("projects")) return "projects";
+  if (allowed.has("commercial")) return "commercial";
   if (allowed.has("sales")) return "sales";
   if (allowed.has("marketing")) return "marketing";
   if (allowed.has("collections")) return "collections";
@@ -132,6 +133,13 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
   const [activeSection, setActiveSection] = useState("Project");
 
   const mobile = useMobile();
+
+  // Guard: if the current screen is not allowed for this role, redirect to default
+  useEffect(() => {
+    if (!canAccess(user.role, screen)) {
+      setScreen(getDefaultScreen(user.role));
+    }
+  }, [screen, user.role]);
 
   const metrics = useMemo(() => calculateMetrics(model), [model]);
   const displayMetrics = useMemo(
@@ -185,6 +193,7 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
   }, []);
 
   const openProject = async (projectId: number, projectName: string) => {
+    if (!canAccess(user.role, "feasibility")) return;
     setLoading(true);
     try {
       const run = await fetchFeasibility(projectId);
@@ -217,6 +226,7 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
   };
 
   const openNewProject = async () => {
+    if (!canAccess(user.role, "feasibility")) return;
     const name = newProjectName.trim();
     if (!name) {
       setStatus("Enter a project name to continue");
@@ -424,6 +434,8 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
             <CommercialTeamPage
               projects={projects}
               onBack={backToProjects}
+              onLogout={!canAccess(user.role, "projects") ? onLogout : undefined}
+              onRefresh={!canAccess(user.role, "projects") ? loadProjects : undefined}
             />
           ) : screen === "sales" ? (
             <SalesTeamPage
