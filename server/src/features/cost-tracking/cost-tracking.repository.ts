@@ -176,9 +176,9 @@ export class CostTrackingRepository {
       p.categoryId,
       p.year,
       p.month,
-      p.actualAmount ?? null,
+      p.actualAmount ?? 0,
       p.projectedAmount ?? 0,
-      p.budgetAmount ?? null,
+      p.budgetAmount ?? 0,
       p.notes ?? null,
       p.createdBy ?? null,
     ]);
