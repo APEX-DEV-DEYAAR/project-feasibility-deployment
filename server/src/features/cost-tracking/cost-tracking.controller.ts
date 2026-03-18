@@ -246,9 +246,7 @@ export class CostTrackingController {
   getBudgetVsActuals = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const projectId = parseIntParam(req.params.projectId, "project ID");
-      const year = parseIntParam(req.query.year as string || String(new Date().getFullYear()), "year");
-      validateYear(year);
-      const data = await this.service.getBudgetVsActuals(projectId, year);
+      const data = await this.service.getBudgetVsActuals(projectId);
       res.json(data);
     } catch (error) {
       next(error);

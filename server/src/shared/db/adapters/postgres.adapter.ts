@@ -47,6 +47,11 @@ export class PostgresAdapter extends BaseAdapter {
       "011_collections_forecast_formula_inputs.sql",
       "012_users.sql",
       "013_audit_log.sql",
+      "014_budget_vs_actuals_indexes.sql",
+      "015_metric_overrides.sql",
+      "017_monthly_sales.sql",
+      "018_monthly_sales_retry.sql",
+      "019_cfo_dashboard_indexes.sql",
     ];
 
     for (const file of migrationFiles) {

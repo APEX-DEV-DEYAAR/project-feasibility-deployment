@@ -56,5 +56,15 @@ export function createFeasibilityController(service: FeasibilityService) {
         next(err);
       }
     },
+
+    async saveOverrides(req: Request, res: Response, next: NextFunction): Promise<void> {
+      try {
+        const overrides = Array.isArray(req.body.overrides) ? req.body.overrides : req.body;
+        const data = await service.saveOverrides(Number(req.params.id), overrides);
+        res.json(data);
+      } catch (err) {
+        next(err);
+      }
+    },
   };
 }

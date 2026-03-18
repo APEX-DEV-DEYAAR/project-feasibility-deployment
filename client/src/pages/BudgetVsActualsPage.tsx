@@ -4,6 +4,7 @@ import ExecutiveBridgeChart from "../components/ExecutiveBridgeChart";
 import VarianceWaterfallChart from "../components/VarianceWaterfallChart";
 import { fetchBudgetVsActuals } from "../api/cost-tracking.api";
 import { fetchFeasibility } from "../api/feasibility.api";
+import { applyOverrides } from "../utils/calculations";
 import type { ProjectSummary, BudgetVsActualRow, FeasibilityRun } from "../types";
 import { formatM } from "../utils/formatters";
 
@@ -18,7 +19,7 @@ interface BudgetVsActualsPageProps {
 
 interface BudgetLineItemDef {
   lineItem: string;
-  type: "cost" | "revenue";
+  type: "cost" | "revenue" | "sales";
   team: BudgetVsActualRow["team"];
   getBudget: (metrics: FeasibilityRun["metrics"]) => number;
 }
@@ -28,6 +29,7 @@ const TEAM_LABELS: Record<string, string> = {
   sales: "Sales",
   marketing: "Marketing",
   collections: "Collections",
+  "sales-tracking": "Sales Performance",
   revenue: "Feasibility",
 };
 
@@ -36,6 +38,7 @@ const TEAM_ICONS: Record<string, string> = {
   sales: "🤝",
   marketing: "📢",
   collections: "💰",
+  "sales-tracking": "📈",
   revenue: "📊",
 };
 
@@ -51,7 +54,7 @@ const FEASIBILITY_LINE_ITEMS: BudgetLineItemDef[] = [
   { lineItem: "DLD Cost", type: "cost", team: "sales", getBudget: () => 0 },
   { lineItem: "Sales Incentives", type: "cost", team: "sales", getBudget: () => 0 },
   { lineItem: "Marketing", type: "cost", team: "marketing", getBudget: (m) => m.costs.marketing },
-  { lineItem: "Gross Residential Sales", type: "revenue", team: "collections", getBudget: (m) => m.revenue.totalInflows ?? m.revenue.total ?? 0 },
+  { lineItem: "Collections", type: "revenue", team: "collections", getBudget: (m) => m.revenue.totalInflows ?? m.revenue.total ?? 0 },
 ];
 
 function getSalesExpBudget(metrics: FeasibilityRun["metrics"]): number {
@@ -237,7 +240,6 @@ function CapsuleTabs({
 }
 
 export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefresh }: BudgetVsActualsPageProps) {
-  const currentYear = new Date().getFullYear();
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('breakdown');
   const [data, setData] = useState<BudgetVsActualRow[]>([]);
@@ -269,7 +271,7 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
       setError(null);
       try {
         const [actualsResponse, feasData] = await Promise.all([
-          fetchBudgetVsActuals(selectedProjectId, currentYear),
+          fetchBudgetVsActuals(selectedProjectId),
           fetchFeasibility(selectedProjectId),
         ]);
         setData(actualsResponse.rows);
@@ -283,7 +285,13 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
     };
 
     void loadData();
-  }, [selectedProjectId, currentYear, reloadKey]);
+  }, [selectedProjectId, reloadKey]);
+
+  // Apply overrides to feasibility metrics so Budget vs Actuals reflects overridden values
+  const effectiveMetrics = useMemo(() => {
+    if (!feasibility?.metrics) return null;
+    return applyOverrides(feasibility.metrics, feasibility.overrides ?? []);
+  }, [feasibility]);
 
   const mergedData = useMemo(() => {
     const trackedRows = new Map(data.map((row) => [row.lineItem, row]));
@@ -293,8 +301,9 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
       const blended = (row?.blended ?? 0) / 1e6;
       const actual = (row?.actual ?? 0) / 1e6;
       const projected = (row?.projected ?? 0) / 1e6;
-      const budget = feasibility?.metrics ? def.getBudget(feasibility.metrics) : 0;
-      const variance = def.type === "revenue" ? blended - budget : budget - blended;
+      const budget = effectiveMetrics ? def.getBudget(effectiveMetrics) : 0;
+      const isInflow = def.type === "revenue" || def.type === "sales";
+      const variance = isInflow ? blended - budget : budget - blended;
       const variancePct = budget !== 0 ? (variance / budget) * 100 : 0;
 
       return {
@@ -312,25 +321,36 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
 
     const extraTrackedRows: BudgetVsActualRow[] = data
       .filter((row) => !FEASIBILITY_LINE_ITEMS.some((def) => def.lineItem === row.lineItem))
-      .map((row) => ({
-        ...row,
-        budget: 0,
-        actual: row.actual / 1e6,
-        projected: row.projected / 1e6,
-        blended: row.blended / 1e6,
-        variance: row.type === "revenue" ? row.blended / 1e6 : -(row.blended / 1e6),
-        variancePct: 0,
-      }));
+      .map((row) => {
+        const isInflow = row.type === "revenue" || row.type === "sales";
+        const budget = row.budget / 1e6;
+        const actual = row.actual / 1e6;
+        const projected = row.projected / 1e6;
+        const blended = row.blended / 1e6;
+        const variance = isInflow ? blended - budget : budget - blended;
+        const variancePct = budget !== 0 ? (variance / budget) * 100 : 0;
+        return { ...row, budget, actual, projected, blended, variance, variancePct };
+      });
 
     return [...feasibilityRows, ...extraTrackedRows];
-  }, [data, feasibility]);
+  }, [data, effectiveMetrics]);
 
   const salesItems = mergedData.filter((row) => row.team === "sales" && row.type === "cost");
   const totalSalesActual = salesItems.reduce((sum, row) => sum + row.actual, 0);
   const totalSalesProjected = salesItems.reduce((sum, row) => sum + row.projected, 0);
   const totalSalesBlended = salesItems.reduce((sum, row) => sum + row.blended, 0);
-  const totalSalesBudget = feasibility?.metrics ? getSalesExpBudget(feasibility.metrics) : 0;
+  const totalSalesBudget = effectiveMetrics ? getSalesExpBudget(effectiveMetrics) : 0;
   const totalSalesVariance = totalSalesBudget - totalSalesBlended;
+
+  // Sales performance (TSV) row from tracked data
+  const salesPerfRows = mergedData.filter((row) => row.type === "sales");
+  const salesPerfBudget = effectiveMetrics ? (effectiveMetrics.revenue.totalInflows ?? effectiveMetrics.revenue.total ?? 0) : 0;
+  const salesPerfActual = salesPerfRows.reduce((sum, row) => sum + row.actual, 0);
+  const salesPerfProjected = salesPerfRows.reduce((sum, row) => sum + row.projected, 0);
+  const salesPerfBlended = salesPerfRows.reduce((sum, row) => sum + row.blended, 0);
+  const salesPerfVariance = salesPerfBlended - salesPerfBudget;
+  const salesPerfVariancePct = salesPerfBudget !== 0 ? (salesPerfVariance / salesPerfBudget) * 100 : 0;
+  const hasSalesPerf = salesPerfRows.length > 0 && (salesPerfActual > 0 || salesPerfProjected > 0);
 
   const costRows = mergedData.filter((row) => row.type === "cost" && row.team !== "sales" && row.budget > 0);
   const revenueRows = mergedData.filter((row) => row.type === "revenue" && row.budget > 0);
@@ -383,19 +403,30 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
   const netProfitVariance = netProfitBlended - netProfitBudget;
 
   const feasibilityLabel = feasibility ? `v${feasibility.version ?? 1} (${feasibility.status})` : "No feasibility";
-  const noBudgetedData = costRows.length === 0 && revenueRows.length === 0 && totalSalesBudget === 0;
+  const noBudgetedData = costRows.length === 0 && revenueRows.length === 0 && totalSalesBudget === 0 && !hasSalesPerf;
 
   const executiveBridgeSteps = [
-    { label: "Inflow", budgetChange: totalRevBudget, blendedChange: totalRevBlended, kind: "inflow" as const },
+    ...(hasSalesPerf ? [
+      { label: "Sales (TSV)", budgetChange: salesPerfBudget, blendedChange: salesPerfBlended, kind: "inflow" as const },
+    ] : []),
+    { label: "Collections", budgetChange: totalRevBudget, blendedChange: totalRevBlended, kind: "inflow" as const },
     { label: "Outflow Excl. COF", budgetChange: -totalOperatingOutflowBudget, blendedChange: -totalOperatingOutflowBlended, kind: "outflow" as const },
     { label: "COF", budgetChange: -totalCofBudget, blendedChange: -totalCofBlended, kind: "outflow" as const },
   ];
 
   const analystChartData = [
+    ...(hasSalesPerf ? [{
+      label: "Sales Performance (TSV)",
+      team: "Sales Tracking",
+      budget: salesPerfBudget,
+      actual: salesPerfActual,
+      projected: salesPerfProjected,
+      kind: "inflow" as const,
+    }] : []),
     ...revenueRows.map((row) => ({
-      label: row.lineItem,
+      label: "Collections",
       team: "Collections",
-      budget: row.budget,
+      budget: hasSalesPerf ? salesPerfBlended : row.budget,
       actual: row.actual,
       projected: row.projected,
       kind: "inflow" as const,
@@ -486,7 +517,7 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
           </div>
           <div className="bva-header-badges">
             <span className="badge brown">DEYAAR</span>
-            <span className="badge beige">FY{currentYear}</span>
+            <span className="badge beige">Since Inception</span>
           </div>
         </div>
 
@@ -525,7 +556,7 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
           <div className="bva-activity-bar">
             <span className="activity-title">Last Team Activity</span>
             <div className="activity-items">
-              {["commercial", "sales", "marketing", "collections"].map((team) => (
+              {["commercial", "sales", "sales-tracking", "marketing", "collections"].map((team) => (
                 <div key={team} className={`activity-item ${teamActivity[team] ? 'active' : ''}`}>
                   <span className={`activity-dot team-${team}`}></span>
                   <span className="activity-team">{TEAM_LABELS[team]}</span>
@@ -560,8 +591,20 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
             {/* Executive KPI Cards */}
             <div className="bva-kpi-section">
               <div className="bva-kpi-grid">
+                {hasSalesPerf && (
+                  <KPICard
+                    title="Sales (TSV)"
+                    budget={salesPerfBudget}
+                    actual={salesPerfActual}
+                    projected={salesPerfProjected}
+                    variance={salesPerfVariance}
+                    variancePct={salesPerfVariancePct}
+                    type="revenue"
+                    icon="📈"
+                  />
+                )}
                 <KPICard
-                  title="Total Revenue"
+                  title="Collections"
                   budget={totalRevBudget}
                   actual={totalRevActual}
                   projected={totalRevProjected}
@@ -588,7 +631,7 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
                   variance={netProfitVariance}
                   variancePct={netProfitVariancePct}
                   type="profit"
-                  icon="📈"
+                  icon="📊"
                 />
               </div>
             </div>
@@ -620,21 +663,83 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
                         </tr>
                       </thead>
                       <tbody>
-                        {/* Revenue Section */}
+                        {/* Revenue Budget (from feasibility) */}
+                        {effectiveMetrics && (
+                          <>
+                            <tr className="section-header">
+                              <td colSpan={8}>
+                                <span className="section-icon">📊</span> Revenue Budget (Feasibility)
+                              </td>
+                            </tr>
+                            <tr className="revenue-row">
+                              <td className="line-item-cell">Gross Residential Revenue</td>
+                              <td className="team-cell">
+                                <span className="team-tag team-revenue">📊 Feasibility</span>
+                              </td>
+                              <td className="amount-cell budget">{formatM(effectiveMetrics.revenue.totalInflows ?? effectiveMetrics.revenue.total ?? 0)}</td>
+                              <td className="amount-cell actual" colSpan={4} style={{ textAlign: "center", color: "#9ca3af", fontStyle: "italic" }}>
+                                Budget baseline from feasibility study
+                              </td>
+                              <td className="pct-cell"></td>
+                            </tr>
+                          </>
+                        )}
+
+                        {/* Sales Performance Section */}
+                        {hasSalesPerf && (
+                          <>
+                            <tr className="section-header">
+                              <td colSpan={8}>
+                                <span className="section-icon">📈</span> Sales Performance (TSV)
+                              </td>
+                            </tr>
+                            {salesPerfRows.map((row, idx) => (
+                              <TableRow key={`sales-${idx}`} row={{
+                                ...row,
+                                budget: salesPerfBudget,
+                                variance: salesPerfVariance,
+                                variancePct: salesPerfVariancePct,
+                              }} isRevenue />
+                            ))}
+                            <tr className="subtotal-row">
+                              <td className="line-item-cell"><strong>Total Sales</strong></td>
+                              <td className="team-cell"></td>
+                              <td className="amount-cell budget"><strong>{formatM(salesPerfBudget)}</strong></td>
+                              <td className="amount-cell actual"><strong>{formatM(salesPerfActual)}</strong></td>
+                              <td className="amount-cell projected"><strong>{formatM(salesPerfProjected)}</strong></td>
+                              <td className="amount-cell blended"><strong>{formatM(salesPerfBlended)}</strong></td>
+                              <td className={`amount-cell variance ${salesPerfVariance >= 0 ? 'positive' : 'negative'}`}>
+                                <strong>{formatM(salesPerfVariance)}</strong>
+                              </td>
+                              <td className="pct-cell">
+                                <VarianceBadge value={salesPerfVariancePct} type="revenue" />
+                              </td>
+                            </tr>
+                          </>
+                        )}
+
+                        {/* Collections Section */}
                         {revenueRows.length > 0 && (
                           <>
                             <tr className="section-header">
                               <td colSpan={8}>
-                                <span className="section-icon">💰</span> Revenue / Inflow
+                                <span className="section-icon">💰</span> Collections (Cash In)
                               </td>
                             </tr>
                             {revenueRows.map((row, idx) => (
-                              <TableRow key={`rev-${idx}`} row={row} isRevenue />
+                              <TableRow key={`rev-${idx}`} row={{
+                                ...row,
+                                budget: hasSalesPerf ? salesPerfBlended : row.budget,
+                                variance: hasSalesPerf ? row.blended - salesPerfBlended : row.variance,
+                                variancePct: hasSalesPerf && salesPerfBlended !== 0
+                                  ? ((row.blended - salesPerfBlended) / salesPerfBlended) * 100
+                                  : row.variancePct,
+                              }} isRevenue />
                             ))}
                             <tr className="subtotal-row">
-                              <td className="line-item-cell"><strong>Total Inflow</strong></td>
+                              <td className="line-item-cell"><strong>Total Collections</strong></td>
                               <td className="team-cell"></td>
-                              <td className="amount-cell budget"><strong>{formatM(totalRevBudget)}</strong></td>
+                              <td className="amount-cell budget"><strong>{formatM(hasSalesPerf ? salesPerfBlended : totalRevBudget)}</strong></td>
                               <td className="amount-cell actual"><strong>{formatM(totalRevActual)}</strong></td>
                               <td className="amount-cell projected"><strong>{formatM(totalRevProjected)}</strong></td>
                               <td className="amount-cell blended"><strong>{formatM(totalRevBlended)}</strong></td>

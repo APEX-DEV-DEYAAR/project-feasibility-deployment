@@ -9,6 +9,7 @@ import {
   editFrozenFeasibility,
   fetchArchive,
   fetchPortfolio,
+  saveOverrides as apiSaveOverrides,
 } from "./api/feasibility.api";
 import { logout as apiLogout } from "./api/auth.api";
 import {
@@ -17,12 +18,13 @@ import {
   emptyModel,
   hydrateModelFromRun,
   serializeModelForSave,
+  applyOverrides,
 } from "./utils/calculations";
 import { useMobile } from "./hooks/useMobile";
 import Toast from "./components/Toast";
 import ProjectsPage from "./pages/ProjectsPage";
 import LoginPage from "./pages/LoginPage";
-import type { ClientModel, ProjectSummary, ArchivedRun, FeasibilityMetrics, AuthUser, UserRole } from "./types";
+import type { ClientModel, ProjectSummary, ArchivedRun, FeasibilityMetrics, AuthUser, UserRole, MetricOverride } from "./types";
 
 const FeasibilityPage = lazy(() => import("./pages/FeasibilityPage"));
 const PortfolioPage = lazy(() => import("./pages/PortfolioPage"));
@@ -31,6 +33,7 @@ const SalesTeamPage = lazy(() => import("./pages/SalesTeamPage"));
 const MarketingTeamPage = lazy(() => import("./pages/MarketingTeamPage"));
 const CollectionsTeamPage = lazy(() => import("./pages/CollectionsTeamPage"));
 const CollectionsForecastPage = lazy(() => import("./pages/CollectionsForecastPage"));
+const SalesTrackingPage = lazy(() => import("./pages/SalesTrackingPage"));
 const BudgetVsActualsPage = lazy(() => import("./pages/BudgetVsActualsPage"));
 
 // Extended project type with metrics for the feasibility portfolio dashboard
@@ -47,13 +50,13 @@ interface ToastItem {
 // ---- Role-based screen access ----
 // admin sees everything, other roles see specific screens
 const ROLE_SCREENS: Record<UserRole, Set<string>> = {
-  admin: new Set(["projects", "feasibility", "portfolio", "commercial", "sales", "marketing", "collections", "budget"]),
+  admin: new Set(["projects", "feasibility", "portfolio", "commercial", "sales", "salesTracking", "marketing", "collections", "budget"]),
   commercial: new Set(["projects", "feasibility", "portfolio", "commercial", "budget"]),
-  sales: new Set(["sales"]),
+  sales: new Set(["sales", "salesTracking"]),
   collections: new Set(["collections"]),
-  finance: new Set(["projects", "feasibility", "portfolio", "budget"]),
+  finance: new Set(["projects", "feasibility", "portfolio", "salesTracking", "budget"]),
   marketing : new Set(["marketing"]),
-  cfo : new Set([ "budget"])
+  cfo : new Set(["salesTracking", "budget"])
 };
 
 function canAccess(role: UserRole, screen: string): boolean {
@@ -106,7 +109,7 @@ export default function App() {
 // ---- The main app, shown only when logged in ----
 
 // Determine the landing screen for a role — first allowed screen wins
-function getDefaultScreen(role: UserRole): "projects" | "feasibility" | "portfolio" | "commercial" | "sales" | "marketing" | "collections" | "collectionsForecast" | "budget" {
+function getDefaultScreen(role: UserRole): "projects" | "feasibility" | "portfolio" | "commercial" | "sales" | "salesTracking" | "marketing" | "collections" | "collectionsForecast" | "budget" {
   const allowed = ROLE_SCREENS[role];
   if (allowed.has("projects")) return "projects";
   if (allowed.has("sales")) return "sales";
@@ -118,7 +121,7 @@ function getDefaultScreen(role: UserRole): "projects" | "feasibility" | "portfol
 }
 
 function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
-  const [screen, setScreen] = useState<"projects" | "feasibility" | "portfolio" | "commercial" | "sales" | "marketing" | "collections" | "collectionsForecast" | "budget">(getDefaultScreen(user.role));
+  const [screen, setScreen] = useState<"projects" | "feasibility" | "portfolio" | "commercial" | "sales" | "salesTracking" | "marketing" | "collections" | "collectionsForecast" | "budget">(getDefaultScreen(user.role));
   const [projects, setProjects] = useState<ProjectWithMetrics[]>([]);
   const [newProjectName, setNewProjectName] = useState("");
   const [model, setModel] = useState<ClientModel>(emptyModel());
@@ -131,6 +134,10 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
   const mobile = useMobile();
 
   const metrics = useMemo(() => calculateMetrics(model), [model]);
+  const displayMetrics = useMemo(
+    () => applyOverrides(metrics, model.overrides || []),
+    [metrics, model.overrides]
+  );
   const shareTotal = useMemo(
     () => model.partners.reduce((sum, p) => sum + (Number(p.share) || 0), 0),
     [model.partners]
@@ -190,6 +197,7 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
             version: run.version,
             status: run.status,
             payload: run.payload as unknown as Record<string, unknown>,
+            overrides: run.overrides,
           })
         );
       } else {
@@ -329,6 +337,7 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
           version: run.version,
           status: run.status,
           payload: run.payload as unknown as Record<string, unknown>,
+          overrides: run.overrides,
         })
       );
       const arch = await fetchArchive(model.projectId);
@@ -342,6 +351,35 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
       setLoading(false);
     }
   };
+
+  const handleSaveOverride = useCallback(async (override: MetricOverride) => {
+    const newOverrides = [
+      ...(model.overrides || []).filter((o) => o.metricKey !== override.metricKey),
+      override,
+    ];
+    setModel((prev) => ({ ...prev, overrides: newOverrides }));
+    if (model.projectId) {
+      try {
+        await apiSaveOverrides(model.projectId, newOverrides);
+        addToast("Override saved");
+      } catch (error) {
+        addToast((error as Error).message, "error");
+      }
+    }
+  }, [model.projectId, model.overrides]);
+
+  const handleRemoveOverride = useCallback(async (metricKey: string) => {
+    const newOverrides = (model.overrides || []).filter((o) => o.metricKey !== metricKey);
+    setModel((prev) => ({ ...prev, overrides: newOverrides }));
+    if (model.projectId) {
+      try {
+        await apiSaveOverrides(model.projectId, newOverrides);
+        addToast("Override removed");
+      } catch (error) {
+        addToast((error as Error).message, "error");
+      }
+    }
+  }, [model.projectId, model.overrides]);
 
   const backToProjects = async () => {
     setScreen(getDefaultScreen(user.role));
@@ -369,6 +407,7 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
           onNavigateToMarketing={canAccess(user.role, "marketing") ? () => setScreen("marketing") : undefined}
           onNavigateToCollections={canAccess(user.role, "collections") ? () => setScreen("collections") : undefined}
           onNavigateToCollectionsForecast={canAccess(user.role, "collectionsForecast") ? () => setScreen("collectionsForecast") : undefined}
+          onNavigateToSalesTracking={canAccess(user.role, "salesTracking") ? () => setScreen("salesTracking") : undefined}
           onNavigateToBudget={canAccess(user.role, "budget") ? () => setScreen("budget") : undefined}
           userRole={user.role}
           userName={user.username}
@@ -416,6 +455,13 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
               onRefresh={!canAccess(user.role, "projects") ? loadProjects : undefined}
               onNavigateToCollections={canAccess(user.role, "collections") ? () => setScreen("collections") : undefined}
             />
+          ) : screen === "salesTracking" ? (
+            <SalesTrackingPage
+              projects={projects}
+              onBack={backToProjects}
+              onLogout={!canAccess(user.role, "projects") ? onLogout : undefined}
+              onRefresh={!canAccess(user.role, "projects") ? loadProjects : undefined}
+            />
           ) : screen === "budget" ? (
             <BudgetVsActualsPage
               projects={projects}
@@ -427,6 +473,10 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
             <FeasibilityPage
               model={model}
               metrics={metrics}
+              displayMetrics={displayMetrics}
+              overrides={model.overrides || []}
+              onSaveOverride={handleSaveOverride}
+              onRemoveOverride={handleRemoveOverride}
               shareTotal={shareTotal}
               shareValid={shareValid}
               activeSection={activeSection}

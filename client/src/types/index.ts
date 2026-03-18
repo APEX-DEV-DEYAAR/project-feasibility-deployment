@@ -23,6 +23,13 @@ export interface ClientPartner {
   share: string;
 }
 
+export interface MetricOverride {
+  metricKey: string;
+  originalValue: number;
+  overrideValue: number;
+  justification: string;
+}
+
 export interface ClientModel {
   runId: number | null;
   projectId: number | null;
@@ -31,6 +38,7 @@ export interface ClientModel {
   partners: ClientPartner[];
   version: number | null;
   status: FeasibilityStatus;
+  overrides: MetricOverride[];
 }
 
 // ---------- API Response Types ----------
@@ -64,6 +72,7 @@ export interface FeasibilityRun {
     partners: { name: string; share: number | null }[];
   };
   metrics: FeasibilityMetrics;
+  overrides?: MetricOverride[];
   createdAt: string;
   updatedAt: string;
   frozenAt: string | null;
@@ -80,6 +89,7 @@ export interface ArchivedRun {
     partners: { name: string; share: number | null }[];
   };
   metrics: FeasibilityMetrics;
+  overrides?: MetricOverride[];
   frozenAt: string | null;
   archivedAt: string;
 }
@@ -303,12 +313,35 @@ export interface SaveMonthlyCollectionsPayload {
   createdBy?: string;
 }
 
+// ---------- Sales Tracking ----------
+
+export interface MonthlySalesRow {
+  year: number;
+  month: number;
+  monthName: string;
+  budgetAmount: number | null;
+  actualAmount: number | null;
+  projectedAmount: number | null;
+  notes: string | null;
+}
+
+export interface SaveMonthlySalesPayload {
+  projectId: number;
+  year: number;
+  month: number;
+  budgetAmount?: number | null;
+  actualAmount?: number | null;
+  projectedAmount?: number | null;
+  notes?: string;
+  createdBy?: string;
+}
+
 // ---------- Budget vs Actuals ----------
 
 export interface BudgetVsActualRow {
   lineItem: string;
-  type: "cost" | "revenue";
-  team: TeamCode | "revenue";
+  type: "cost" | "revenue" | "sales";
+  team: TeamCode | "revenue" | "sales-tracking";
   budget: number;
   actual: number;
   projected: number;
