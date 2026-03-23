@@ -1,3 +1,4 @@
+import { logger } from "../../shared/logger.js";
 import type { BaseAdapter } from "../../shared/db/adapters/base.adapter.js";
 import type { MetricOverride } from "../../shared/types/index.js";
 
@@ -66,7 +67,7 @@ export class OverridesRepository {
 
       try {
         await this.db.query(ddl);
-        console.log(`  Created table: ${t.name}`);
+        logger.info({ table: t.name }, "Created table");
       } catch (err: unknown) {
         const code = (err as { errorNum?: number; code?: string });
         // ORA-00955 = table already exists, 42P07 = Postgres table already exists

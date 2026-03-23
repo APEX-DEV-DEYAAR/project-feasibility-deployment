@@ -17,6 +17,7 @@ interface SalesTrackingPageProps {
   onBack: () => void;
   onLogout?: () => void;
   onRefresh?: () => void;
+  onNavigateToSales?: () => void;
 }
 
 const MONTH_NAMES_FULL = [
@@ -51,7 +52,7 @@ function toAmount(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-export default function SalesTrackingPage({ projects, onBack, onLogout, onRefresh }: SalesTrackingPageProps) {
+export default function SalesTrackingPage({ projects, onBack, onLogout, onRefresh, onNavigateToSales }: SalesTrackingPageProps) {
   const currentYear = new Date().getFullYear();
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [salesData, setSalesData] = useState<MonthlySalesRow[]>([]);
@@ -350,6 +351,11 @@ export default function SalesTrackingPage({ projects, onBack, onLogout, onRefres
           <div className="topbar-title">Sales Performance Tracking</div>
         </div>
         <div className="topbar-actions">
+          {onNavigateToSales && (
+            <button className="btn btn-ghost" onClick={onNavigateToSales} title="Sales Team Cost Tracking">
+              Sales Team
+            </button>
+          )}
           {onLogout || onRefresh ? (
             <>
               {onRefresh && (

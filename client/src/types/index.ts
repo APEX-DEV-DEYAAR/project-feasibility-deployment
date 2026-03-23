@@ -1,6 +1,6 @@
 // ---------- Auth ----------
 
-export type UserRole = "admin" | "sales" | "collections" | "commercial" | "finance" | "marketing" | "cfo";
+export type UserRole = "admin" | "sales" | "collections" | "commercial" | "finance" | "marketing" | "business_development" | "cfo";
 
 export interface AuthUser {
   userId: number;

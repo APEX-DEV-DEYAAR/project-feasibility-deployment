@@ -14,7 +14,7 @@ function mockRes() {
 }
 
 describe("errorHandler", () => {
-  const req = {} as Request;
+  const req = { method: "GET", originalUrl: "/test" } as Request;
   const next = vi.fn() as NextFunction;
 
   it("returns 404 for NotFoundError", () => {
@@ -39,10 +39,7 @@ describe("errorHandler", () => {
 
   it("returns 500 for unknown errors", () => {
     const res = mockRes();
-    // Suppress console.error during test
-    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     errorHandler(new Error("unexpected"), req, res, next);
     expect(res.statusCode).toBe(500);
-    spy.mockRestore();
   });
 });

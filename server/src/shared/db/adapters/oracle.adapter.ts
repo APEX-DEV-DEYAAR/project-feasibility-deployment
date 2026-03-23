@@ -2,6 +2,7 @@ import oracledb from "oracledb";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { logger } from "../../logger.js";
 import { BaseAdapter } from "./base.adapter.js";
 import type { UpsertReturningOptions } from "./base.adapter.js";
 import type { QueryResult } from "../../types/index.js";
@@ -104,10 +105,7 @@ export class OracleAdapter extends BaseAdapter {
       poolIncrement: 1,
     });
 
-    console.log("Oracle connection pool created successfully.");
-
-    // Run migrations
-    await this.runMigrations();
+    logger.info("Oracle connection pool created successfully");
   }
 
   private async runMigrations(): Promise<void> {
@@ -201,10 +199,10 @@ export class OracleAdapter extends BaseAdapter {
           [file]
         );
         await conn.commit();
-        console.log(`  Applied migration: ${file}`);
+        logger.info({ file }, "Applied migration");
       } catch (error) {
         await conn.rollback();
-        console.error(`  Migration failed: ${file}`, error);
+        logger.error({ file, err: error }, "Migration failed");
         throw error;
       } finally {
         await conn.close();

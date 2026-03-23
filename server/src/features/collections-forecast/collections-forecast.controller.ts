@@ -6,6 +6,7 @@ import type {
   SaveCollectionsCompletionLookupPayload,
   SaveCollectionsInstallmentPayload,
 } from "../../shared/types/index.js";
+import { completionLookupSchema, agingLookupSchema, parseOrThrow } from "../../shared/utils/validation.js";
 
 function parseIntParam(value: string, name: string): number {
   const num = parseInt(value, 10);
@@ -101,11 +102,12 @@ export class CollectionsForecastController {
 
   bulkSaveCompletionLookups = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { lookups } = req.body as { lookups?: SaveCollectionsCompletionLookupPayload[] };
+      const { lookups } = req.body as { lookups?: unknown[] };
       if (!Array.isArray(lookups) || lookups.length === 0) {
         throw new ValidationError("Completion lookups array is required and must not be empty");
       }
-      res.status(201).json(await this.service.bulkSaveCompletionLookups(lookups));
+      const validated = lookups.map((l) => parseOrThrow(completionLookupSchema, l)) as SaveCollectionsCompletionLookupPayload[];
+      res.status(201).json(await this.service.bulkSaveCompletionLookups(validated));
     } catch (error) {
       next(error);
     }
@@ -113,11 +115,12 @@ export class CollectionsForecastController {
 
   bulkSaveAgingLookups = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { lookups } = req.body as { lookups?: SaveCollectionsAgingLookupPayload[] };
+      const { lookups } = req.body as { lookups?: unknown[] };
       if (!Array.isArray(lookups) || lookups.length === 0) {
         throw new ValidationError("Aging lookups array is required and must not be empty");
       }
-      res.status(201).json(await this.service.bulkSaveAgingLookups(lookups));
+      const validated = lookups.map((l) => parseOrThrow(agingLookupSchema, l)) as SaveCollectionsAgingLookupPayload[];
+      res.status(201).json(await this.service.bulkSaveAgingLookups(validated));
     } catch (error) {
       next(error);
     }

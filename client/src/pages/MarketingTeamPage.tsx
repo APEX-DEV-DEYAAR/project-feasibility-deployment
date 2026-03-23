@@ -12,7 +12,7 @@ export default function MarketingTeamPage({ projects, onBack, onLogout, onRefres
   return (
     <TeamCostPage
       teamCode="marketing"
-      teamName="Marketing Team"
+      teamName="Finance Team"
       projects={projects}
       onBack={onBack}
       onLogout={onLogout}

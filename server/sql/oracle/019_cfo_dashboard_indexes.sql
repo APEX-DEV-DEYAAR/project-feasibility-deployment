@@ -77,4 +77,20 @@ EXCEPTION
   WHEN OTHERS THEN
     IF SQLCODE NOT IN (-955, -1408) THEN RAISE; END IF;
 END;
+
+  CREATE TABLE audit_log (                                                                                                                                             
+    id           NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,                                                                                                          username     VARCHAR2(255),                                                                                                                                        
+    role         VARCHAR2(100),                                                                                                                                        
+    method       VARCHAR2(10),
+    path         VARCHAR2(500),
+    status_code  NUMBER,
+    duration_ms  NUMBER,
+    resource_id  VARCHAR2(255),
+    resource_type VARCHAR2(100),
+    action       VARCHAR2(100),
+    body_snapshot CLOB,
+    created_at   TIMESTAMP DEFAULT SYSTIMESTAMP
+  );
+
+
 /

@@ -47,6 +47,7 @@ interface FeasibilityPageProps {
   onSave: () => void;
   onFreeze: () => void;
   onEditFrozen: () => void;
+  readOnly?: boolean;
 }
 
 export default function FeasibilityPage({
@@ -77,6 +78,7 @@ export default function FeasibilityPage({
   onSave,
   onFreeze,
   onEditFrozen,
+  readOnly = false,
 }: FeasibilityPageProps) {
   const [showInputModal, setShowInputModal] = useState(false);
   const [viewingArchive, setViewingArchive] = useState<ArchivedRun | null>(null);
@@ -236,7 +238,7 @@ export default function FeasibilityPage({
             </>
           ) : (
             <>
-              {!isMobile && !isFrozen && (
+              {!readOnly && !isMobile && !isFrozen && (
                 <button
                   className="btn btn-terra"
                   onClick={() => setShowInputModal(true)}
@@ -247,7 +249,7 @@ export default function FeasibilityPage({
                 </button>
               )}
 
-              {isMobile && (
+              {!readOnly && isMobile && (
                 <button className="mobile-menu-btn" onClick={onOpenSidebar} title="Open inputs">
                   ☰
                 </button>
@@ -259,12 +261,12 @@ export default function FeasibilityPage({
                 ←
               </button>
 
-              {currentModel.status === "frozen" ? (
+              {!readOnly && currentModel.status === "frozen" ? (
                 <button className="btn btn-terra" onClick={onEditFrozen} disabled={loading}>
                   <span className="btn-text-desktop">✎ Edit</span>
                   <span className="btn-text-mobile">✎</span>
                 </button>
-              ) : (
+              ) : !readOnly ? (
                 <>
                   {currentModel.runId && (
                     <button className="btn btn-freeze" onClick={onFreeze} disabled={loading}>
@@ -273,14 +275,14 @@ export default function FeasibilityPage({
                     </button>
                   )}
                 </>
-              )}
+              ) : null}
             </>
           )}
         </div>
       </header>
 
       {/* Input Modal for Desktop */}
-      {!isMobile && !isArchiveView && (
+      {!readOnly && !isMobile && !isArchiveView && (
         <InputModal
           model={currentModel}
           isOpen={showInputModal}
@@ -298,7 +300,7 @@ export default function FeasibilityPage({
       )}
 
       {/* Mobile Sidebar */}
-      {isMobile && !isArchiveView && (
+      {!readOnly && isMobile && !isArchiveView && (
         <MobileSidebar
           isOpen={sidebarOpen}
           onClose={onCloseSidebar}
@@ -322,7 +324,7 @@ export default function FeasibilityPage({
             ? new Date(viewingArchive!.frozenAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
             : "unknown date"}
         </div>
-      ) : currentModel.status === "frozen" && (
+      ) : !readOnly && currentModel.status === "frozen" && (
         <div className="frozen-banner">
           Frozen v{currentModel.version} · Click "Edit" to create a new draft
         </div>

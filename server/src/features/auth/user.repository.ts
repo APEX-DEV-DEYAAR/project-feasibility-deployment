@@ -52,6 +52,14 @@ export class UserRepository {
     );
   }
 
+  async deleteById(id: number): Promise<boolean> {
+    const { rowCount } = await this.db.query(
+      `DELETE FROM app_users WHERE id = ${this.db.placeholder(1)}`,
+      [id]
+    );
+    return rowCount > 0;
+  }
+
   async count(): Promise<number> {
     const { rows } = await this.db.query<{ cnt: number }>(
       `SELECT COUNT(*) AS "cnt" FROM app_users`

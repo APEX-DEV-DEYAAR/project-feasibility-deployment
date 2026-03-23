@@ -1,53 +1,18 @@
 import { useState } from "react";
 import { login } from "../api/auth.api";
-import type { AuthUser, UserRole } from "../types";
+import type { AuthUser } from "../types";
 import DeyaarLogo from "../components/DeyaarLogo";
 
 interface LoginPageProps {
   onLogin: (user: AuthUser) => void;
 }
 
-interface ReferenceUser {
-  username: string;
-  password: string;
-  role: UserRole;
-  label: string;
-  icon: string;
-}
-
-const REFERENCE_USERS: ReferenceUser[] = [
-  { username: "admin", password: "Admin@123456", role: "admin", label: "Admin", icon: "A" },
-  { username: "commercial", password: "Commercial@123", role: "commercial", label: "Commercial", icon: "C" },
-  { username: "sales", password: "Sales@123456", role: "sales", label: "Sales", icon: "S" },
-  { username: "finance", password: "Finance@1234", role: "finance", label: "Finance", icon: "F" },
-  { username: "collections", password: "Collections@123", role: "collections", label: "Collections", icon: "Co" },
-  { username: "marketing", password: "Marketing@123", role: "marketing", label: "Marketing", icon: "M" },
-  { username: "cfo", password: "Cfo@123456789", role: "cfo", label: "CFO", icon: "CF" },
-];
-
-const ROLE_COLORS: Record<UserRole, string> = {
-  admin: "#D26935",
-  commercial: "#3D2914",
-  sales: "#A64B2A",
-  finance: "#5C4033",
-  collections: "#8B3A22",
-  marketing: "#7B6B3A",
-  cfo: "#2A5A4B",
-};
 
 export default function LoginPage({ onLogin }: LoginPageProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<string | null>(null);
-
-  const handleSelectUser = (user: ReferenceUser) => {
-    setUsername(user.username);
-    setPassword(user.password);
-    setSelectedUser(user.username);
-    setError("");
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,10 +53,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             <input
               type="text"
               value={username}
-              onChange={(e) => {
-                setUsername(e.target.value);
-                setSelectedUser(null);
-              }}
+              onChange={(e) => setUsername(e.target.value)}
               style={styles.input}
               autoComplete="username"
               placeholder="Enter username"
@@ -103,10 +65,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             <input
               type="password"
               value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setSelectedUser(null);
-              }}
+              onChange={(e) => setPassword(e.target.value)}
               style={styles.input}
               autoComplete="current-password"
               placeholder="Enter password"
@@ -116,43 +75,6 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           <button type="submit" disabled={loading} style={styles.button}>
             {loading ? "Signing in..." : "Sign In"}
           </button>
-
-          {/* Quick-select user row below the button */}
-          <div style={styles.divider}>
-            <span style={styles.dividerLine} />
-            <span style={styles.dividerText}>Quick Access</span>
-            <span style={styles.dividerLine} />
-          </div>
-          <div style={styles.userGrid}>
-            {REFERENCE_USERS.map((user) => (
-              <button
-                key={user.username}
-                type="button"
-                onClick={() => handleSelectUser(user)}
-                style={{
-                  ...styles.userCard,
-                  borderColor:
-                    selectedUser === user.username
-                      ? ROLE_COLORS[user.role]
-                      : "#EDE4D3",
-                  background:
-                    selectedUser === user.username
-                      ? `${ROLE_COLORS[user.role]}10`
-                      : "#FFFFFF",
-                }}
-              >
-                <div
-                  style={{
-                    ...styles.userAvatar,
-                    background: ROLE_COLORS[user.role],
-                  }}
-                >
-                  {user.icon}
-                </div>
-                <span style={styles.userLabel}>{user.label}</span>
-              </button>
-            ))}
-          </div>
         </form>
 
         <p style={styles.footer}>Deyaar Development PJSC</p>
@@ -226,60 +148,6 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "8px",
     fontSize: "13px",
     border: "1px solid #E8C4B8",
-    fontFamily: "system-ui, sans-serif",
-  },
-  userGrid: {
-    display: "flex",
-    gap: "8px",
-    flexWrap: "wrap" as const,
-  },
-  userCard: {
-    display: "flex",
-    flexDirection: "column" as const,
-    alignItems: "center",
-    gap: "6px",
-    padding: "10px 8px",
-    borderRadius: "10px",
-    border: "1.5px solid #EDE4D3",
-    cursor: "pointer",
-    flex: "1 1 60px",
-    minWidth: "60px",
-    transition: "all 0.15s ease",
-    outline: "none",
-    fontFamily: "system-ui, sans-serif",
-  },
-  userAvatar: {
-    width: "32px",
-    height: "32px",
-    borderRadius: "50%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#FFFFFF",
-    fontSize: "12px",
-    fontWeight: 700,
-    fontFamily: "system-ui, sans-serif",
-  },
-  userLabel: {
-    fontSize: "11px",
-    fontWeight: 600,
-    color: "#3D2914",
-  },
-  divider: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    margin: "4px 0",
-  },
-  dividerLine: {
-    flex: 1,
-    height: "1px",
-    background: "#EDE4D3",
-  },
-  dividerText: {
-    fontSize: "11px",
-    color: "#B0B0B0",
-    whiteSpace: "nowrap" as const,
     fontFamily: "system-ui, sans-serif",
   },
   label: {

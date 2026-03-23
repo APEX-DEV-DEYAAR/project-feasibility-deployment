@@ -29,7 +29,7 @@ export function authRoutes(authService: AuthService): Router {
       res.cookie("token", result.token, {
         httpOnly: true,
         secure: isProduction,
-        sameSite: isProduction ? "none" : "strict", // "none" required for cross-origin in production
+        sameSite: isProduction ? "none" : "strict", // "none" required while frontend/backend are cross-origin; move to "strict" once same-domain
         maxAge: 30 * 60 * 1000, // 30 minutes, matching JWT expiry
         path: "/",
       });
@@ -74,7 +74,7 @@ export function authRoutes(authService: AuthService): Router {
           res.status(400).json({ message: "Username and password are required" });
           return;
         }
-        const validRoles = ["admin", "sales", "collections", "commercial", "finance", "marketing", "cfo"];
+        const validRoles = ["admin", "sales", "collections", "commercial", "finance", "marketing", "cfo","business_development"];
         const userRole = validRoles.includes(role) ? role : "commercial";
         const user = await authService.register(
           username,
@@ -118,6 +118,22 @@ export function authRoutes(authService: AuthService): Router {
         }
         await authService.changePassword(userId, password);
         res.json({ message: "Password updated" });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  // DELETE /api/auth/users/:id — admin-only: delete a user
+  router.delete(
+    "/auth/users/:id",
+    authMiddleware(authService),
+    requireRole("admin"),
+    async (req, res, next) => {
+      try {
+        const userId = Number(req.params.id);
+        await authService.deleteUser(userId);
+        res.json({ message: "User deleted" });
       } catch (error) {
         next(error);
       }

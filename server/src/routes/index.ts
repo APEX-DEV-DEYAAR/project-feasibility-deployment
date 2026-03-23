@@ -3,7 +3,7 @@ import { healthRoutes } from "../features/health/health.routes.js";
 import { authRoutes } from "../features/auth/auth.routes.js";
 import { projectRoutes } from "../features/project/project.routes.js";
 import { feasibilityRoutes } from "../features/feasibility/feasibility.routes.js";
-import { costTrackingRoutes } from "../features/cost-tracking/cost-tracking.routes.js";
+import { costTrackingRoutes, budgetVsActualsRoutes } from "../features/cost-tracking/cost-tracking.routes.js";
 import { collectionsRoutes } from "../features/collections/revenue.routes.js";
 import { salesRoutes } from "../features/sales-tracking/sales.routes.js";
 import { collectionsForecastRoutes } from "../features/collections-forecast/collections-forecast.routes.js";
@@ -48,18 +48,21 @@ export function apiRoutes({
   // Public routes
   router.use(healthRoutes());
   router.use(authRoutes(authService));
-  router.use(cfoDashboardRoutes(cfoDashboardController));
 
   // Protected routes — require valid JWT + CSRF guard + audit logging
   router.use(csrfGuard);
   router.use(authMiddleware(authService));
   router.use(createAuditLog(auditLogRepo));
+
+  // Route groups — role guards are applied per-route inside each router
   router.use(projectRoutes(projectService));
   router.use(feasibilityRoutes(feasibilityService));
+  router.use(budgetVsActualsRoutes(costTrackingController));
   router.use(costTrackingRoutes(costTrackingController));
   router.use(collectionsRoutes(collectionsController));
   router.use(salesRoutes(salesController));
   router.use(collectionsForecastRoutes(collectionsForecastController));
+  router.use(cfoDashboardRoutes(cfoDashboardController));
 
   return router;
 }

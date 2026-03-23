@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { CollectionsService } from "./revenue.service.js";
 import { AppError, ValidationError } from "../../shared/errors/AppError.js";
 import type { SaveMonthlyCollectionsPayload } from "../../shared/types/index.js";
+import { saveMonthlyCollectionsSchema, parseOrThrow } from "../../shared/utils/validation.js";
 
 function parseIntParam(value: string, name: string): number {
   const num = parseInt(value, 10);
@@ -9,43 +10,12 @@ function parseIntParam(value: string, name: string): number {
   return num;
 }
 
-function validateMonth(month: number): void {
-  if (month < 1 || month > 12) throw new ValidationError("Month must be between 1 and 12");
-}
-
 function validateYear(year: number): void {
   if (year < 2000 || year > 2100) throw new ValidationError("Year must be between 2000 and 2100");
 }
 
-function toNumberOrNull(value: unknown): number | null {
-  if (value == null) return null;
-  const num = Number(value);
-  if (!Number.isFinite(num)) return null;
-  return num;
-}
-
-function validateAndNormalizeCollectionsPayload(payload: SaveMonthlyCollectionsPayload): SaveMonthlyCollectionsPayload {
-  const projectId = Number(payload.projectId);
-  const year = Number(payload.year);
-  const month = Number(payload.month);
-
-  if (!Number.isInteger(projectId) || projectId <= 0)
-    throw new ValidationError("Valid projectId is required");
-  if (!Number.isInteger(year)) throw new ValidationError("Year is required");
-  if (!Number.isInteger(month)) throw new ValidationError("Month is required");
-
-  validateYear(year);
-  validateMonth(month);
-
-  return {
-    ...payload,
-    projectId,
-    year,
-    month,
-    budgetAmount: toNumberOrNull(payload.budgetAmount),
-    actualAmount: toNumberOrNull(payload.actualAmount),
-    projectedAmount: toNumberOrNull(payload.projectedAmount),
-  };
+function validateMonth(month: number): void {
+  if (month < 1 || month > 12) throw new ValidationError("Month must be between 1 and 12");
 }
 
 const MAX_BULK_SIZE = 500;
@@ -71,7 +41,7 @@ export class CollectionsController {
 
   saveMonthlyCollections = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const normalized = validateAndNormalizeCollectionsPayload(req.body);
+      const normalized = parseOrThrow(saveMonthlyCollectionsSchema, req.body) as SaveMonthlyCollectionsPayload;
       const result = await this.service.saveMonthlyCollections(normalized);
       res.status(201).json(result);
     } catch (error) {
@@ -90,7 +60,7 @@ export class CollectionsController {
         throw new ValidationError(`Bulk save limited to ${MAX_BULK_SIZE} items`);
       }
 
-      const normalized = collections.map(validateAndNormalizeCollectionsPayload);
+      const normalized = collections.map((c: unknown) => parseOrThrow(saveMonthlyCollectionsSchema, c)) as SaveMonthlyCollectionsPayload[];
       const saved = await this.service.bulkSaveMonthlyCollections(normalized);
       res.status(201).json(saved);
     } catch (error) {

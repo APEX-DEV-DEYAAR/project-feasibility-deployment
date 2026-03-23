@@ -1,3 +1,4 @@
+import { logger } from "./shared/logger.js";
 import { config } from "./shared/config/index.js";
 import { createDatabaseAdapter } from "./shared/db/index.js";
 import { ProjectRepository } from "./features/project/project.repository.js";
@@ -90,11 +91,11 @@ async function start(): Promise<void> {
   });
 
   app.listen(config.port, () => {
-    console.log(`Feasibility API running on http://localhost:${config.port}`);
+    logger.info({ port: config.port }, "Feasibility API running");
   });
 }
 
 start().catch((error) => {
-  console.error("Startup failed:", error);
+  logger.fatal({ err: error }, "Startup failed");
   process.exit(1);
 });

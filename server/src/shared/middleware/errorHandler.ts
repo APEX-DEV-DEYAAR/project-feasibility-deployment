@@ -1,14 +1,15 @@
 import type { Request, Response, NextFunction } from "express";
 import { AppError } from "../errors/AppError.js";
+import { logger } from "../logger.js";
 
-export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction): void {
+export function errorHandler(err: Error, req: Request, res: Response, _next: NextFunction): void {
   if (err instanceof AppError) {
     res.status(err.statusCode).json({ message: err.message });
     return;
   }
 
   // Log full error server-side for debugging
-  console.error("Unhandled error:", err);
+  logger.error({ err, method: req.method, path: req.originalUrl }, "Unhandled error");
 
   // In production, never expose internal error details to the client
   const message = process.env.NODE_ENV === "production"

@@ -14,6 +14,7 @@ const AVAILABLE_ROLES: { value: UserRole; label: string }[] = [
   { value: "collections", label: "Collections" },
   { value: "finance", label: "Finance" },
   { value: "marketing", label: "Marketing" },
+  { value: "business_development", label: "Business Development" },
   { value: "cfo", label: "CFO" },
 ];
 
@@ -343,24 +344,26 @@ export default function ProjectsPage({
               <span className="badge beige">Feasibility Summary</span>
             </div>
           </div>
-          <div className="dashboard-header-actions">
-            <input
-              type="text"
-              className="input-field project-name-input"
-              placeholder="Enter new project name"
-              value={newProjectName}
-              onChange={(e) => onNewProjectNameChange?.(e.target.value)}
-              disabled={loading}
-              onKeyDown={(e) => e.key === "Enter" && onOpenNewProject()}
-            />
-            <button
-              className="btn btn-terra"
-              onClick={onOpenNewProject}
-              disabled={loading || !newProjectName.trim()}
-            >
-              + New Project
-            </button>
-          </div>
+          {(userRole === "admin" || userRole === "business_development") && (
+            <div className="dashboard-header-actions">
+              <input
+                type="text"
+                className="input-field project-name-input"
+                placeholder="Enter new project name"
+                value={newProjectName}
+                onChange={(e) => onNewProjectNameChange?.(e.target.value)}
+                disabled={loading}
+                onKeyDown={(e) => e.key === "Enter" && onOpenNewProject()}
+              />
+              <button
+                className="btn btn-terra"
+                onClick={onOpenNewProject}
+                disabled={loading || !newProjectName.trim()}
+              >
+                + New Project
+              </button>
+            </div>
+          )}
         </div>
 
         {/* PORTFOLIO SUMMARY - Key Metrics */}
@@ -529,7 +532,7 @@ export default function ProjectsPage({
                   <div className="th">Profit (AED)</div>
                   <div className="th">Margin</div>
                   <div className="th">Units</div>
-                  <div className="th">Action</div>
+                  {userRole === "admin" && <div className="th">Action</div>}
                 </div>
                 {projects.map((project) => {
                   const statusBadge = getStatusBadge(project);
@@ -569,37 +572,39 @@ export default function ProjectsPage({
                       <div className="td units-cell">
                         {metrics ? formatInt(metrics.totalUnits) : "—"}
                       </div>
-                      <div className="td action-cell">
-                        {confirmDeleteId === project.id ? (
-                          <div className="delete-confirm-inline">
+                      {userRole === "admin" && (
+                        <div className="td action-cell">
+                          {confirmDeleteId === project.id ? (
+                            <div className="delete-confirm-inline">
+                              <button
+                                className="btn-confirm-yes"
+                                onClick={() => {
+                                  onDeleteProject(project.id, project.name);
+                                  setConfirmDeleteId(null);
+                                }}
+                                disabled={loading}
+                              >
+                                ✓
+                              </button>
+                              <button
+                                className="btn-confirm-no"
+                                onClick={() => setConfirmDeleteId(null)}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ) : (
                             <button
-                              className="btn-confirm-yes"
-                              onClick={() => {
-                                onDeleteProject(project.id, project.name);
-                                setConfirmDeleteId(null);
-                              }}
+                              className="btn-delete-sm"
+                              onClick={() => setConfirmDeleteId(project.id)}
                               disabled={loading}
-                            >
-                              ✓
-                            </button>
-                            <button
-                              className="btn-confirm-no"
-                              onClick={() => setConfirmDeleteId(null)}
+                              title="Delete project"
                             >
                               ✕
                             </button>
-                          </div>
-                        ) : (
-                          <button
-                            className="btn-delete-sm"
-                            onClick={() => setConfirmDeleteId(project.id)}
-                            disabled={loading}
-                            title="Delete project"
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

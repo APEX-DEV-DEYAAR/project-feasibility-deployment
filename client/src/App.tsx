@@ -54,9 +54,10 @@ const ROLE_SCREENS: Record<UserRole, Set<string>> = {
   commercial: new Set([ "commercial"]),
   sales: new Set(["sales", "salesTracking"]),
   collections: new Set(["collections"]),
-  finance: new Set(["projects", "feasibility", "portfolio", "salesTracking", "budget"]),
+  finance: new Set(["marketing"]),
   marketing : new Set(["marketing"]),
-  cfo : new Set(["salesTracking", "budget"])
+  cfo : new Set(["projects", "feasibility", "portfolio", "budget"]),
+  business_development : new Set(["projects", "feasibility"])
 };
 
 function canAccess(role: UserRole, screen: string): boolean {
@@ -443,6 +444,7 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
               onBack={backToProjects}
               onLogout={!canAccess(user.role, "projects") ? onLogout : undefined}
               onRefresh={!canAccess(user.role, "projects") ? loadProjects : undefined}
+              onNavigateToSalesTracking={canAccess(user.role, "salesTracking") ? () => setScreen("salesTracking") : undefined}
             />
           ) : screen === "marketing" ? (
             <MarketingTeamPage
@@ -473,6 +475,7 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
               onBack={backToProjects}
               onLogout={!canAccess(user.role, "projects") ? onLogout : undefined}
               onRefresh={!canAccess(user.role, "projects") ? loadProjects : undefined}
+              onNavigateToSales={canAccess(user.role, "sales") ? () => setScreen("sales") : undefined}
             />
           ) : screen === "budget" ? (
             <BudgetVsActualsPage
@@ -510,6 +513,7 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
               onSave={save}
               onFreeze={freeze}
               onEditFrozen={editFrozen}
+              readOnly={user.role !== "admin" && user.role !== "business_development"}
             />
           )}
         </Suspense>

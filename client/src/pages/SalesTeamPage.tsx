@@ -6,9 +6,10 @@ interface SalesTeamPageProps {
   onBack: () => void;
   onLogout?: () => void;
   onRefresh?: () => void;
+  onNavigateToSalesTracking?: () => void;
 }
 
-export default function SalesTeamPage({ projects, onBack, onLogout, onRefresh }: SalesTeamPageProps) {
+export default function SalesTeamPage({ projects, onBack, onLogout, onRefresh, onNavigateToSalesTracking }: SalesTeamPageProps) {
   return (
     <TeamCostPage
       teamCode="sales"
@@ -17,6 +18,7 @@ export default function SalesTeamPage({ projects, onBack, onLogout, onRefresh }:
       onBack={onBack}
       onLogout={onLogout}
       onRefresh={onRefresh}
+      extraNavButtons={onNavigateToSalesTracking ? [{ label: "Sales Tracking", onClick: onNavigateToSalesTracking }] : undefined}
     />
   );
 }

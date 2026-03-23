@@ -1,3 +1,4 @@
+import { logger } from "../../shared/logger.js";
 import type { BaseAdapter } from "../../shared/db/adapters/base.adapter.js";
 import type {
   ArchivedRun,
@@ -92,7 +93,7 @@ export class FeasibilityRelationalRepository {
       try {
         await this.syncRun(run);
       } catch (err) {
-        console.warn(`  Backfill: skipped run ${run.id} — ${(err as Error).message}`);
+        logger.warn({ runId: run.id, err: (err as Error).message }, "Backfill: skipped run");
       }
     }
 
@@ -113,7 +114,7 @@ export class FeasibilityRelationalRepository {
       try {
         await this.syncArchive(archive);
       } catch (err) {
-        console.warn(`  Backfill: skipped archive ${archive.id} — ${(err as Error).message}`);
+        logger.warn({ archiveId: archive.id, err: (err as Error).message }, "Backfill: skipped archive");
       }
     }
   }

@@ -5,9 +5,10 @@ const dbType = process.env.DB_TYPE || "postgres";
 
 const jwtSecret = process.env.JWT_SECRET ?? "";
 if (!jwtSecret || jwtSecret.length < 32) {
-  console.error(
+  // Logger may not be initialized yet; use stderr directly for fatal config errors.
+  process.stderr.write(
     "FATAL: JWT_SECRET environment variable must be set and at least 32 characters long.\n" +
-    "Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
+    "Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"\n"
   );
   process.exit(1);
 }

@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { CostTrackingService } from "./cost-tracking.service.js";
 import { AppError, ValidationError } from "../../shared/errors/AppError.js";
 import type { SaveMonthlyCostPayload, TeamCode } from "../../shared/types/index.js";
+import { saveMonthlyCostSchema, parseOrThrow } from "../../shared/utils/validation.js";
 
 function parseIntParam(value: string, name: string): number {
   const num = parseInt(value, 10);
@@ -9,51 +10,20 @@ function parseIntParam(value: string, name: string): number {
   return num;
 }
 
-function validateMonth(month: number): void {
-  if (month < 1 || month > 12) throw new ValidationError("Month must be between 1 and 12");
-}
-
 function validateYear(year: number): void {
   if (year < 2000 || year > 2100) throw new ValidationError("Year must be between 2000 and 2100");
 }
 
-function toNumberOrNull(value: unknown): number | null {
-  if (value == null) return null;
-  const num = Number(value);
-  if (!Number.isFinite(num)) return null;
-  return num;
+function validateMonth(month: number): void {
+  if (month < 1 || month > 12) throw new ValidationError("Month must be between 1 and 12");
 }
 
-function validateAndNormalizeCostPayload(payload: SaveMonthlyCostPayload): SaveMonthlyCostPayload {
-  const projectId = Number(payload.projectId);
-  const categoryId = Number(payload.categoryId);
-  const year = Number(payload.year);
-  const month = Number(payload.month);
+const VALID_TEAMS: ReadonlySet<string> = new Set(["commercial", "sales", "marketing", "collections"]);
 
-  if (!Number.isInteger(projectId) || projectId <= 0)
-    throw new ValidationError("Valid projectId is required");
-  if (!Number.isInteger(categoryId) || categoryId <= 0)
-    throw new ValidationError("Valid categoryId is required");
-  if (!Number.isInteger(year)) throw new ValidationError("Year is required");
-  if (!Number.isInteger(month)) throw new ValidationError("Month is required");
-
-  validateYear(year);
-  validateMonth(month);
-
-  const actualAmount = toNumberOrNull(payload.actualAmount);
-  const projectedAmount = toNumberOrNull(payload.projectedAmount);
-  const budgetAmount = toNumberOrNull(payload.budgetAmount);
-
-  return {
-    ...payload,
-    projectId,
-    categoryId,
-    year,
-    month,
-    actualAmount,
-    projectedAmount,
-    budgetAmount,
-  };
+function validateTeam(team: string | undefined): TeamCode | undefined {
+  if (team == null) return undefined;
+  if (!VALID_TEAMS.has(team)) throw new ValidationError(`Invalid team code: ${team}`);
+  return team as TeamCode;
 }
 
 const MAX_BULK_SIZE = 500;
@@ -65,7 +35,7 @@ export class CostTrackingController {
 
   getCategories = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const team = req.query.team as TeamCode | undefined;
+      const team = validateTeam(req.query.team as string | undefined);
       const categories = await this.service.getCategories(team);
       res.json(categories);
     } catch (error) {
@@ -79,7 +49,7 @@ export class CostTrackingController {
     try {
       const projectId = parseIntParam(req.params.projectId, "project ID");
       const rawYear = req.query.year as string | undefined;
-      const team = req.query.team as TeamCode | undefined;
+      const team = validateTeam(req.query.team as string | undefined);
       let year: number | undefined;
       if (rawYear) {
         year = parseIntParam(rawYear, "year");
@@ -110,7 +80,7 @@ export class CostTrackingController {
 
   saveMonthlyCost = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const normalized = validateAndNormalizeCostPayload(req.body);
+      const normalized = parseOrThrow(saveMonthlyCostSchema, req.body) as SaveMonthlyCostPayload;
       const cost = await this.service.saveMonthlyCost(normalized);
       res.status(201).json(cost);
     } catch (error) {
@@ -129,7 +99,7 @@ export class CostTrackingController {
         throw new ValidationError(`Bulk save limited to ${MAX_BULK_SIZE} items`);
       }
 
-      const normalized = costs.map(validateAndNormalizeCostPayload);
+      const normalized = costs.map((c: unknown) => parseOrThrow(saveMonthlyCostSchema, c)) as SaveMonthlyCostPayload[];
       const saved = await this.service.bulkSaveMonthlyCosts(normalized);
       res.status(201).json(saved);
     } catch (error) {
@@ -202,7 +172,7 @@ export class CostTrackingController {
       validateYear(year);
       const defaultAmount = parseFloat(req.body.defaultProjectedAmount as string) || 0;
       const createdBy = req.body.createdBy as string | undefined;
-      const team = req.body.team as TeamCode | undefined;
+      const team = validateTeam(req.body.team as string | undefined);
 
       const costs = await this.service.initializeYear(projectId, year, defaultAmount, createdBy, team);
       res.status(201).json(costs);
@@ -232,7 +202,7 @@ export class CostTrackingController {
   clearProjectData = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const projectId = parseIntParam(req.params.projectId, "project ID");
-      const team = req.query.team as TeamCode | undefined;
+      const team = validateTeam(req.query.team as string | undefined);
       const deletedCount = await this.service.clearProjectData(projectId, team);
       const label = team === "collections" ? "collections" : team ? `${team} cost` : "project";
       res.json({ message: `Deleted ${deletedCount} ${label} records for project ${projectId}`, deletedCount });

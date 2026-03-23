@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import type { UserRepository } from "./user.repository.js";
 import type { AuthPayload, UserRole } from "../../shared/types/index.js";
 import { AppError } from "../../shared/errors/AppError.js";
+import { logger } from "../../shared/logger.js";
 
 const BCRYPT_ROUNDS = 12;
 
@@ -45,22 +46,24 @@ export class AuthService {
   /** Seed default department users if they don't already exist. */
   async seedDefaultUser(): Promise<void> {
     const seedUsers: { username: string; password: string; role: UserRole }[] = [
-      { username: "admin", password: "Admin@123456", role: "admin" },
-      { username: "commercial", password: "Commercial@123", role: "commercial" },
-      { username: "sales", password: "Sales@123456", role: "sales" },
-      { username: "finance", password: "Finance@1234", role: "finance" },
-      { username: "collections", password: "Collections@123", role: "collections" },
-      { username: "marketing", password: "Marketing@123", role: "marketing" },
-      { username: "cfo", password: "Cfo@123456789", role: "cfo" },
+      { username: "admin", password: "Password@1234", role: "admin" },
+      { username: "commercial", password: "Password@1234", role: "commercial" },
+      { username: "sales", password: "Password@1234", role: "sales" },
+      { username: "finance", password: "Password@1234", role: "finance" },
+      { username: "collections", password: "Password@1234", role: "collections" },
+      { username: "marketing", password: "Password@1234", role: "marketing" },
+      { username: "business_development", password: "Password@1234", role: "business_development" },
+      { username: "cfo", password: "Password@1234", role: "cfo" },
     ];
 
     for (const seed of seedUsers) {
       const existing = await this.userRepo.findByUsername(seed.username);
       if (existing) continue;
 
+      this.validatePassword(seed.password);
       const hash = await bcrypt.hash(seed.password, BCRYPT_ROUNDS);
       await this.userRepo.create(seed.username, hash, seed.role);
-      console.log(`  Seeded user: ${seed.username} (${seed.role})`);
+      logger.info({ username: seed.username, role: seed.role }, "Seeded user");
     }
   }
 
@@ -93,11 +96,18 @@ export class AuthService {
     await this.userRepo.updatePassword(userId, hash);
   }
 
+  async deleteUser(userId: number): Promise<void> {
+    const deleted = await this.userRepo.deleteById(userId);
+    if (!deleted) {
+      throw new AppError("User not found", 404);
+    }
+  }
+
   async register(username: string, password: string, role: UserRole): Promise<AuthPayload> {
     this.validatePassword(password);
     const existing = await this.userRepo.findByUsername(username);
     if (existing) {
-      throw new AppError("Username already exists", 409);
+      throw new AppError("Registration failed", 409);
     }
 
     const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
