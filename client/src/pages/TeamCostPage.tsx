@@ -19,6 +19,7 @@ import type {
   SaveMonthlyCollectionsPayload,
 } from "../types";
 import { formatNumber } from "../utils/formatters";
+import { loadExcelJs, exportToExcel as excelExport, importFromExcel, type ExcelColumn } from "../utils/excel";
 
 interface NavButton {
   label: string;
@@ -45,22 +46,6 @@ const MONTH_NAMES_FULL = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
 ];
-
-interface ExcelRow {
-  Year: number;
-  Month: string;
-  MonthNum: number;
-  [key: string]: string | number;
-}
-
-let xlsxModulePromise: Promise<typeof import("xlsx")> | null = null;
-
-function loadXlsx() {
-  if (!xlsxModulePromise) {
-    xlsxModulePromise = import("xlsx");
-  }
-  return xlsxModulePromise;
-}
 
 function getEditKey(year: number, month: number, categoryId: number): string {
   return `${year}-${month}-${categoryId}`;
@@ -97,7 +82,7 @@ export default function TeamCostPage({ teamCode, teamName, projects, showCollect
     [projects, selectedProjectId]
   );
 
-  useEffect(() => { loadCategories(); loadXlsx(); }, []);
+  useEffect(() => { loadCategories(); loadExcelJs(); }, []);
   useEffect(() => { if (selectedProjectId) loadData(); }, [selectedProjectId]);
 
   const loadCategories = async () => {
@@ -272,10 +257,10 @@ export default function TeamCostPage({ teamCode, teamName, projects, showCollect
 
   const handleDownloadExcel = () => {
     if (!selectedProject || monthlyData.length === 0) return;
-    const excelData: ExcelRow[] = [];
+    const excelData: Record<string, unknown>[] = [];
 
     monthlyData.forEach(row => {
-      const excelRow: ExcelRow = { Year: row.year, Month: row.monthName, MonthNum: row.month };
+      const excelRow: Record<string, unknown> = { Year: row.year, Month: row.monthName, MonthNum: row.month };
       categories.forEach(cat => {
         const catEntry = row.categories.find(c => c.categoryId === cat.id);
         const key = getEditKey(row.year, row.month, cat.id);
@@ -293,16 +278,16 @@ export default function TeamCostPage({ teamCode, teamName, projects, showCollect
       excelData.push(excelRow);
     });
 
-    exportToExcel(excelData, `${selectedProject.name.replace(/\s+/g, "_")}_${teamCode}_All_Years.xlsx`);
+    exportToExcelFile(excelData, `${selectedProject.name.replace(/\s+/g, "_")}_${teamCode}_All_Years.xlsx`);
     setSuccessMessage("Excel file downloaded successfully");
     setTimeout(() => setSuccessMessage(null), 3000);
   };
 
   const handleDownloadTemplate = () => {
     if (!selectedProject) return;
-    const excelData: ExcelRow[] = [];
+    const excelData: Record<string, unknown>[] = [];
     for (let month = 1; month <= 12; month++) {
-      const excelRow: ExcelRow = { Year: currentYear, Month: MONTH_NAMES_FULL[month - 1], MonthNum: month };
+      const excelRow: Record<string, unknown> = { Year: currentYear, Month: MONTH_NAMES_FULL[month - 1], MonthNum: month };
       categories.forEach(cat => {
         excelRow[`${cat.name}_Actual`] = "";
         excelRow[`${cat.name}_Projected`] = 0;
@@ -313,22 +298,26 @@ export default function TeamCostPage({ teamCode, teamName, projects, showCollect
       }
       excelData.push(excelRow);
     }
-    exportToExcel(excelData, `${teamCode}_Cost_Template_${currentYear}.xlsx`);
+    exportToExcelFile(excelData, `${teamCode}_Cost_Template_${currentYear}.xlsx`);
     setSuccessMessage("Template downloaded. Fill in the data and upload.");
     setTimeout(() => setSuccessMessage(null), 3000);
   };
 
-  const exportToExcel = (data: ExcelRow[], fileName: string) => {
-    loadXlsx().then((XLSX) => {
-      const ws = XLSX.utils.json_to_sheet(data);
-      const colWidths = [{ wch: 6 }, { wch: 12 }, { wch: 8 }];
-      categories.forEach(() => { colWidths.push({ wch: 15 }, { wch: 15 }); });
-      if (showCollections) colWidths.push({ wch: 15 }, { wch: 15 });
-      ws['!cols'] = colWidths;
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Cost Data");
-      XLSX.writeFile(wb, fileName);
-    }).catch(() => {
+  const exportToExcelFile = (data: Record<string, unknown>[], fileName: string) => {
+    const columns: ExcelColumn[] = [
+      { header: "Year", key: "Year", width: 6 },
+      { header: "Month", key: "Month", width: 12 },
+      { header: "MonthNum", key: "MonthNum", width: 8 },
+      ...categories.flatMap(cat => [
+        { header: `${cat.name}_Actual`, key: `${cat.name}_Actual`, width: 15 },
+        { header: `${cat.name}_Projected`, key: `${cat.name}_Projected`, width: 15 },
+      ]),
+      ...(showCollections ? [
+        { header: "Collections_Actual", key: "Collections_Actual", width: 15 },
+        { header: "Collections_Projected", key: "Collections_Projected", width: 15 },
+      ] : []),
+    ];
+    excelExport(data, columns, "Cost Data", fileName).catch(() => {
       setError("Failed to export Excel file");
     });
   };
@@ -339,11 +328,7 @@ export default function TeamCostPage({ teamCode, teamName, projects, showCollect
     setLoading(true);
     setError(null);
     try {
-      const XLSX = await loadXlsx();
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { type: "array" });
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: undefined, raw: false });
+      const jsonData = await importFromExcel(file);
       if (jsonData.length === 0) throw new Error("No data found in Excel file");
 
       const importPayloads: SaveMonthlyCostPayload[] = [];
@@ -715,7 +700,7 @@ export default function TeamCostPage({ teamCode, teamName, projects, showCollect
               <button className="btn btn-excel-download" onClick={handleDownloadExcel} disabled={loading || monthlyData.length === 0}>Download</button>
               <button className="btn btn-excel-upload" onClick={handleUploadClick} disabled={loading}>Upload</button>
               <button className="btn btn-danger" onClick={handleClearProjectData} disabled={loading}>Clear Project Data</button>
-              <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleFileSelect} style={{ display: "none" }} />
+              <input ref={fileInputRef} type="file" accept=".xlsx" onChange={handleFileSelect} style={{ display: "none" }} />
             </div>
           </div>
         )}

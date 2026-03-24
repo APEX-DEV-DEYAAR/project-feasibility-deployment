@@ -11,6 +11,7 @@ import type {
   SaveMonthlySalesPayload,
 } from "../types";
 import { formatNumber } from "../utils/formatters";
+import { loadExcelJs, exportToExcel as excelExport, importFromExcel } from "../utils/excel";
 
 interface SalesTrackingPageProps {
   projects: ProjectSummary[];
@@ -29,23 +30,6 @@ const MONTH_NAMES = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
-
-interface SalesExcelRow {
-  Year: number;
-  Month: string;
-  MonthNum: number;
-  ActualSalesTSV: number | string;
-  ProjectedSales: number | string;
-}
-
-let xlsxModulePromise: Promise<typeof import("xlsx")> | null = null;
-
-function loadXlsx() {
-  if (!xlsxModulePromise) {
-    xlsxModulePromise = import("xlsx");
-  }
-  return xlsxModulePromise;
-}
 
 function toAmount(value: unknown): number {
   const parsed = Number(value ?? 0);
@@ -73,7 +57,7 @@ export default function SalesTrackingPage({ projects, onBack, onLogout, onRefres
   const cellKey = (year: number, month: number) => `${year}-${month}`;
 
   useEffect(() => {
-    loadXlsx();
+    loadExcelJs();
   }, []);
 
   const loadData = useCallback(async (projectId = selectedProjectId) => {
@@ -191,20 +175,14 @@ export default function SalesTrackingPage({ projects, onBack, onLogout, onRefres
     }
   };
 
-  const exportToExcel = (data: SalesExcelRow[], fileName: string) => {
-    loadXlsx().then((XLSX) => {
-      const worksheet = XLSX.utils.json_to_sheet(data);
-      worksheet["!cols"] = [
-        { wch: 8 },
-        { wch: 14 },
-        { wch: 10 },
-        { wch: 18 },
-        { wch: 18 },
-      ];
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Sales Data");
-      XLSX.writeFile(workbook, fileName);
-    }).catch(() => {
+  const exportToExcelFile = (data: Record<string, unknown>[], fileName: string) => {
+    excelExport(data, [
+      { header: "Year", key: "Year", width: 8 },
+      { header: "Month", key: "Month", width: 14 },
+      { header: "MonthNum", key: "MonthNum", width: 10 },
+      { header: "ActualSalesTSV", key: "ActualSalesTSV", width: 18 },
+      { header: "ProjectedSales", key: "ProjectedSales", width: 18 },
+    ], "Sales Data", fileName).catch(() => {
       setError("Failed to export Excel file");
     });
   };
@@ -212,7 +190,7 @@ export default function SalesTrackingPage({ projects, onBack, onLogout, onRefres
   const handleDownloadExcel = () => {
     if (!selectedProject || salesData.length === 0) return;
 
-    const excelData: SalesExcelRow[] = salesData.map((row) => {
+    const excelData = salesData.map((row) => {
       const key = cellKey(row.year, row.month);
       const edited = editedCells.get(key);
       return {
@@ -224,7 +202,7 @@ export default function SalesTrackingPage({ projects, onBack, onLogout, onRefres
       };
     });
 
-    exportToExcel(
+    exportToExcelFile(
       excelData,
       `${selectedProject.name.replace(/\s+/g, "_")}_sales_tracking_all_years.xlsx`
     );
@@ -235,7 +213,7 @@ export default function SalesTrackingPage({ projects, onBack, onLogout, onRefres
   const handleDownloadTemplate = () => {
     if (!selectedProject) return;
 
-    const excelData: SalesExcelRow[] = Array.from({ length: 12 }, (_, index) => ({
+    const excelData = Array.from({ length: 12 }, (_, index) => ({
       Year: currentYear,
       Month: MONTH_NAMES_FULL[index],
       MonthNum: index + 1,
@@ -243,7 +221,7 @@ export default function SalesTrackingPage({ projects, onBack, onLogout, onRefres
       ProjectedSales: 0,
     }));
 
-    exportToExcel(excelData, `sales_tracking_template_${currentYear}.xlsx`);
+    exportToExcelFile(excelData, `sales_tracking_template_${currentYear}.xlsx`);
     setSuccessMessage("Template downloaded. Fill in the data and upload.");
     setTimeout(() => setSuccessMessage(null), 3000);
   };
@@ -255,14 +233,7 @@ export default function SalesTrackingPage({ projects, onBack, onLogout, onRefres
     setLoading(true);
     setError(null);
     try {
-      const XLSX = await loadXlsx();
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { type: "array" });
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, {
-        defval: undefined,
-        raw: false,
-      });
+      const jsonData = await importFromExcel(file);
 
       if (jsonData.length === 0) {
         throw new Error("No data found in Excel file");
@@ -430,7 +401,7 @@ export default function SalesTrackingPage({ projects, onBack, onLogout, onRefres
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".xlsx,.xls"
+                accept=".xlsx"
                 onChange={handleFileSelect}
                 style={{ display: "none" }}
               />
