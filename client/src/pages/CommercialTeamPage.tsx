@@ -6,9 +6,10 @@ interface CommercialTeamPageProps {
   onBack: () => void;
   onLogout?: () => void;
   onRefresh?: () => void;
+  extraNavButtons?: { label: string; onClick: () => void }[];
 }
 
-export default function CommercialTeamPage({ projects, onBack, onLogout, onRefresh }: CommercialTeamPageProps) {
+export default function CommercialTeamPage({ projects, onBack, onLogout, onRefresh, extraNavButtons }: CommercialTeamPageProps) {
   return (
     <TeamCostPage
       teamCode="commercial"
@@ -17,6 +18,7 @@ export default function CommercialTeamPage({ projects, onBack, onLogout, onRefre
       onBack={onBack}
       onLogout={onLogout}
       onRefresh={onRefresh}
+      extraNavButtons={extraNavButtons}
     />
   );
 }

@@ -5,7 +5,7 @@ export type UserRole = "admin" | "sales" | "collections" | "commercial" | "finan
 export interface AuthUser {
   userId: number;
   username: string;
-  role: UserRole;
+  roles: UserRole[];
 }
 
 export interface LoginResponse {

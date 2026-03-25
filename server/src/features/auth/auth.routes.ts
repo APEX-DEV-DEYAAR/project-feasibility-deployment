@@ -65,22 +65,20 @@ export function authRoutes(authService: AuthService): Router {
     requireRole("admin"),
     async (req, res, next) => {
       try {
-        const { username, password, role } = req.body as {
+        const { username, password, roles } = req.body as {
           username: string;
           password: string;
-          role: string;
+          roles: string | string[];
         };
         if (!username || !password) {
           res.status(400).json({ message: "Username and password are required" });
           return;
         }
-        const validRoles = ["admin", "sales", "collections", "commercial", "finance", "marketing", "cfo","business_development"];
-        const userRole = validRoles.includes(role) ? role : "commercial";
-        const user = await authService.register(
-          username,
-          password,
-          userRole as import("../../shared/types/index.js").UserRole
-        );
+        const validRoles = ["admin", "sales", "collections", "commercial", "finance", "marketing", "cfo", "business_development"];
+        const roleList = Array.isArray(roles) ? roles : (roles || "commercial").split(",").map((r: string) => r.trim());
+        const validated = roleList.filter((r: string) => validRoles.includes(r));
+        const rolesStr = validated.length > 0 ? validated.join(",") : "commercial";
+        const user = await authService.register(username, password, rolesStr);
         res.status(201).json(user);
       } catch (error) {
         next(error);
@@ -118,6 +116,30 @@ export function authRoutes(authService: AuthService): Router {
         }
         await authService.changePassword(userId, password);
         res.json({ message: "Password updated" });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  // PUT /api/auth/users/:id/roles — admin-only: update a user's roles
+  router.put(
+    "/auth/users/:id/roles",
+    authMiddleware(authService),
+    requireRole("admin"),
+    async (req, res, next) => {
+      try {
+        const userId = Number(req.params.id);
+        const { roles } = req.body as { roles: string | string[] };
+        const validRoles = ["admin", "sales", "collections", "commercial", "finance", "marketing", "cfo", "business_development"];
+        const roleList = Array.isArray(roles) ? roles : (roles || "").split(",").map((r: string) => r.trim());
+        const validated = roleList.filter((r: string) => validRoles.includes(r));
+        if (validated.length === 0) {
+          res.status(400).json({ message: "At least one valid role is required" });
+          return;
+        }
+        await authService.updateUserRoles(userId, validated.join(","));
+        res.json({ message: "Roles updated" });
       } catch (error) {
         next(error);
       }

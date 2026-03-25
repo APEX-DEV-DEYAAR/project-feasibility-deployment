@@ -54,22 +54,42 @@ const ROLE_SCREENS: Record<UserRole, Set<string>> = {
   commercial: new Set([ "commercial"]),
   sales: new Set(["sales", "salesTracking"]),
   collections: new Set(["collections"]),
-  finance: new Set(["marketing"]),
+  finance: new Set(["marketing","commercial"]),
   marketing : new Set(["marketing"]),
   cfo : new Set(["projects", "feasibility", "portfolio", "budget"]),
   business_development : new Set(["projects", "feasibility"])
 };
 
-function canAccess(role: UserRole, screen: string): boolean {
+function canAccessSingle(role: UserRole, screen: string): boolean {
   return ROLE_SCREENS[role]?.has(screen) ?? false;
 }
+
+function canAccess(roles: UserRole[], screen: string): boolean {
+  return roles.some((r) => canAccessSingle(r, screen));
+}
+
+const SCREEN_LABELS: Record<string, string> = {
+  commercial: "Commercial",
+  sales: "Sales",
+  salesTracking: "Sales Tracking",
+  marketing: "Marketing",
+  collections: "Collections",
+  budget: "Budget vs Actuals",
+};
 
 // ---- Restore session from localStorage ----
 function loadSession(): AuthUser | null {
   try {
     const raw = localStorage.getItem("user");
     if (raw) {
-      return JSON.parse(raw) as AuthUser;
+      const parsed = JSON.parse(raw);
+      // Migrate old sessions that stored `role` (string) to `roles` (array)
+      if (parsed && !parsed.roles && parsed.role) {
+        parsed.roles = [parsed.role];
+        delete parsed.role;
+        localStorage.setItem("user", JSON.stringify(parsed));
+      }
+      return parsed as AuthUser;
     }
   } catch { /* ignore */ }
   return null;
@@ -109,21 +129,17 @@ export default function App() {
 
 // ---- The main app, shown only when logged in ----
 
-// Determine the landing screen for a role — first allowed screen wins
-function getDefaultScreen(role: UserRole): "projects" | "feasibility" | "portfolio" | "commercial" | "sales" | "salesTracking" | "marketing" | "collections" | "collectionsForecast" | "budget" {
-  const allowed = ROLE_SCREENS[role];
-  if (allowed.has("projects")) return "projects";
-  if (allowed.has("commercial")) return "commercial";
-  if (allowed.has("sales")) return "sales";
-  if (allowed.has("marketing")) return "marketing";
-  if (allowed.has("collections")) return "collections";
-  if (allowed.has("collectionsForecast")) return "collectionsForecast";
-  if (allowed.has("budget")) return "budget";
+// Determine the landing screen for a user's roles — first allowed screen wins
+function getDefaultScreen(roles: UserRole[]): "projects" | "feasibility" | "portfolio" | "commercial" | "sales" | "salesTracking" | "marketing" | "collections" | "collectionsForecast" | "budget" {
+  const screens = ["projects", "commercial", "sales", "marketing", "collections", "collectionsForecast", "budget"] as const;
+  for (const s of screens) {
+    if (canAccess(roles, s)) return s;
+  }
   return "projects";
 }
 
 function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
-  const [screen, setScreen] = useState<"projects" | "feasibility" | "portfolio" | "commercial" | "sales" | "salesTracking" | "marketing" | "collections" | "collectionsForecast" | "budget">(getDefaultScreen(user.role));
+  const [screen, setScreen] = useState<"projects" | "feasibility" | "portfolio" | "commercial" | "sales" | "salesTracking" | "marketing" | "collections" | "collectionsForecast" | "budget">(getDefaultScreen(user.roles));
   const [projects, setProjects] = useState<ProjectWithMetrics[]>([]);
   const [newProjectName, setNewProjectName] = useState("");
   const [model, setModel] = useState<ClientModel>(emptyModel());
@@ -135,12 +151,20 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
 
   const mobile = useMobile();
 
+  function getNavButtons(currentScreen: string) {
+    if (canAccess(user.roles, "projects")) return undefined; // user has "Back to Portfolio"
+    const buttons = Object.entries(SCREEN_LABELS)
+      .filter(([s]) => s !== currentScreen && canAccess(user.roles, s))
+      .map(([s, label]) => ({ label, onClick: () => setScreen(s as typeof screen) }));
+    return buttons.length > 0 ? buttons : undefined;
+  }
+
   // Guard: if the current screen is not allowed for this role, redirect to default
   useEffect(() => {
-    if (!canAccess(user.role, screen)) {
-      setScreen(getDefaultScreen(user.role));
+    if (!canAccess(user.roles, screen)) {
+      setScreen(getDefaultScreen(user.roles));
     }
-  }, [screen, user.role]);
+  }, [screen, user.roles]);
 
   const metrics = useMemo(() => calculateMetrics(model), [model]);
   const displayMetrics = useMemo(
@@ -194,7 +218,7 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
   }, []);
 
   const openProject = async (projectId: number, projectName: string) => {
-    if (!canAccess(user.role, "feasibility")) return;
+    if (!canAccess(user.roles, "feasibility")) return;
     setLoading(true);
     try {
       const run = await fetchFeasibility(projectId);
@@ -227,7 +251,7 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
   };
 
   const openNewProject = async () => {
-    if (!canAccess(user.role, "feasibility")) return;
+    if (!canAccess(user.roles, "feasibility")) return;
     const name = newProjectName.trim();
     if (!name) {
       setStatus("Enter a project name to continue");
@@ -393,7 +417,7 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
   }, [model.projectId, model.overrides]);
 
   const backToProjects = async () => {
-    setScreen(getDefaultScreen(user.role));
+    setScreen(getDefaultScreen(user.roles));
     setArchive([]);
     mobile.closeSidebar();
     await loadProjects();
@@ -413,14 +437,14 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
           onOpenNewProject={openNewProject}
           onDeleteProject={handleDeleteProject}
           onNewProjectNameChange={setNewProjectName}
-          onNavigateToCommercial={canAccess(user.role, "commercial") ? () => setScreen("commercial") : undefined}
-          onNavigateToSales={canAccess(user.role, "sales") ? () => setScreen("sales") : undefined}
-          onNavigateToMarketing={canAccess(user.role, "marketing") ? () => setScreen("marketing") : undefined}
-          onNavigateToCollections={canAccess(user.role, "collections") ? () => setScreen("collections") : undefined}
-          onNavigateToCollectionsForecast={canAccess(user.role, "collectionsForecast") ? () => setScreen("collectionsForecast") : undefined}
-          onNavigateToSalesTracking={canAccess(user.role, "salesTracking") ? () => setScreen("salesTracking") : undefined}
-          onNavigateToBudget={canAccess(user.role, "budget") ? () => setScreen("budget") : undefined}
-          userRole={user.role}
+          onNavigateToCommercial={canAccess(user.roles, "commercial") ? () => setScreen("commercial") : undefined}
+          onNavigateToSales={canAccess(user.roles, "sales") ? () => setScreen("sales") : undefined}
+          onNavigateToMarketing={canAccess(user.roles, "marketing") ? () => setScreen("marketing") : undefined}
+          onNavigateToCollections={canAccess(user.roles, "collections") ? () => setScreen("collections") : undefined}
+          onNavigateToCollectionsForecast={canAccess(user.roles, "collectionsForecast") ? () => setScreen("collectionsForecast") : undefined}
+          onNavigateToSalesTracking={canAccess(user.roles, "salesTracking") ? () => setScreen("salesTracking") : undefined}
+          onNavigateToBudget={canAccess(user.roles, "budget") ? () => setScreen("budget") : undefined}
+          userRoles={user.roles}
           userName={user.username}
           onLogout={onLogout}
         />
@@ -435,54 +459,56 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
             <CommercialTeamPage
               projects={projects}
               onBack={backToProjects}
-              onLogout={!canAccess(user.role, "projects") ? onLogout : undefined}
-              onRefresh={!canAccess(user.role, "projects") ? loadProjects : undefined}
+              onLogout={!canAccess(user.roles, "projects") ? onLogout : undefined}
+              onRefresh={!canAccess(user.roles, "projects") ? loadProjects : undefined}
+              extraNavButtons={getNavButtons("commercial")}
             />
           ) : screen === "sales" ? (
             <SalesTeamPage
               projects={projects}
               onBack={backToProjects}
-              onLogout={!canAccess(user.role, "projects") ? onLogout : undefined}
-              onRefresh={!canAccess(user.role, "projects") ? loadProjects : undefined}
-              onNavigateToSalesTracking={canAccess(user.role, "salesTracking") ? () => setScreen("salesTracking") : undefined}
+              onLogout={!canAccess(user.roles, "projects") ? onLogout : undefined}
+              onRefresh={!canAccess(user.roles, "projects") ? loadProjects : undefined}
+              extraNavButtons={getNavButtons("sales")}
             />
           ) : screen === "marketing" ? (
             <MarketingTeamPage
               projects={projects}
               onBack={backToProjects}
-              onLogout={!canAccess(user.role, "projects") ? onLogout : undefined}
-              onRefresh={!canAccess(user.role, "projects") ? loadProjects : undefined}
+              onLogout={!canAccess(user.roles, "projects") ? onLogout : undefined}
+              onRefresh={!canAccess(user.roles, "projects") ? loadProjects : undefined}
+              extraNavButtons={getNavButtons("marketing")}
             />
           ) : screen === "collections" ? (
             <CollectionsTeamPage
               projects={projects}
               onBack={backToProjects}
-              onLogout={!canAccess(user.role, "projects") ? onLogout : undefined}
-              onRefresh={!canAccess(user.role, "projects") ? loadProjects : undefined}
-              onNavigateToForecast={canAccess(user.role, "collectionsForecast") ? () => setScreen("collectionsForecast") : undefined}
+              onLogout={!canAccess(user.roles, "projects") ? onLogout : undefined}
+              onRefresh={!canAccess(user.roles, "projects") ? loadProjects : undefined}
+              extraNavButtons={getNavButtons("collections")}
             />
           ) : screen === "collectionsForecast" ? (
             <CollectionsForecastPage
               projects={projects}
               onBack={backToProjects}
-              onLogout={!canAccess(user.role, "projects") ? onLogout : undefined}
-              onRefresh={!canAccess(user.role, "projects") ? loadProjects : undefined}
-              onNavigateToCollections={canAccess(user.role, "collections") ? () => setScreen("collections") : undefined}
+              onLogout={!canAccess(user.roles, "projects") ? onLogout : undefined}
+              onRefresh={!canAccess(user.roles, "projects") ? loadProjects : undefined}
+              onNavigateToCollections={canAccess(user.roles, "collections") ? () => setScreen("collections") : undefined}
             />
           ) : screen === "salesTracking" ? (
             <SalesTrackingPage
               projects={projects}
               onBack={backToProjects}
-              onLogout={!canAccess(user.role, "projects") ? onLogout : undefined}
-              onRefresh={!canAccess(user.role, "projects") ? loadProjects : undefined}
-              onNavigateToSales={canAccess(user.role, "sales") ? () => setScreen("sales") : undefined}
+              onLogout={!canAccess(user.roles, "projects") ? onLogout : undefined}
+              onRefresh={!canAccess(user.roles, "projects") ? loadProjects : undefined}
+              onNavigateToSales={canAccess(user.roles, "sales") ? () => setScreen("sales") : undefined}
             />
           ) : screen === "budget" ? (
             <BudgetVsActualsPage
               projects={projects}
               onBack={backToProjects}
-              onLogout={!canAccess(user.role, "projects") ? onLogout : undefined}
-              onRefresh={!canAccess(user.role, "projects") ? loadProjects : undefined}
+              onLogout={!canAccess(user.roles, "projects") ? onLogout : undefined}
+              onRefresh={!canAccess(user.roles, "projects") ? loadProjects : undefined}
             />
           ) : (
             <FeasibilityPage
@@ -513,7 +539,7 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
               onSave={save}
               onFreeze={freeze}
               onEditFrozen={editFrozen}
-              readOnly={user.role !== "admin" && user.role !== "business_development"}
+              readOnly={!user.roles.includes("admin") && !user.roles.includes("business_development")}
             />
           )}
         </Suspense>

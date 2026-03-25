@@ -41,7 +41,7 @@ interface ProjectsPageProps {
   onNavigateToCollectionsForecast?: () => void;
   onNavigateToSalesTracking?: () => void;
   onNavigateToBudget?: () => void;
-  userRole?: UserRole;
+  userRoles?: UserRole[];
   userName?: string;
   onLogout?: () => void;
 }
@@ -64,7 +64,7 @@ export default function ProjectsPage({
   onNavigateToCollectionsForecast,
   onNavigateToSalesTracking,
   onNavigateToBudget,
-  userRole,
+  userRoles,
   userName,
   onLogout,
 }: ProjectsPageProps) {
@@ -72,7 +72,7 @@ export default function ProjectsPage({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isMobile } = useMobile();
   const [showAddUser, setShowAddUser] = useState(false);
-  const [newUser, setNewUser] = useState({ username: "", password: "", role: "commercial" as UserRole });
+  const [newUser, setNewUser] = useState({ username: "", password: "", roles: ["commercial"] as UserRole[] });
   const [addUserLoading, setAddUserLoading] = useState(false);
   const [addUserMsg, setAddUserMsg] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [users, setUsers] = useState<UserListItem[]>([]);
@@ -82,12 +82,12 @@ export default function ProjectsPage({
   const [resetPwMsg, setResetPwMsg] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   const loadUsers = useCallback(async () => {
-    if (userRole !== "admin") return;
+    if (!userRoles?.includes("admin")) return;
     try {
       const list = await fetchUsers();
       setUsers(list);
     } catch { /* ignore */ }
-  }, [userRole]);
+  }, [userRoles]);
 
   useEffect(() => {
     if (showAddUser) loadUsers();
@@ -101,9 +101,9 @@ export default function ProjectsPage({
     setAddUserLoading(true);
     setAddUserMsg(null);
     try {
-      const created = await registerUser(newUser.username.trim(), newUser.password, newUser.role);
-      setAddUserMsg({ text: `User "${created.username}" created with role "${created.role}"`, type: "success" });
-      setNewUser({ username: "", password: "", role: "commercial" });
+      const created = await registerUser(newUser.username.trim(), newUser.password, newUser.roles);
+      setAddUserMsg({ text: `User "${created.username}" created with roles "${created.roles.join(", ")}"`, type: "success" });
+      setNewUser({ username: "", password: "", roles: ["commercial"] });
       await loadUsers();
     } catch (err) {
       setAddUserMsg({ text: (err as Error).message, type: "error" });
@@ -254,7 +254,7 @@ export default function ProjectsPage({
               {userName && (
                 <span className="topbar-tag" style={{ textTransform: "capitalize" }}>{userName}</span>
               )}
-              {userRole === "admin" && (
+              {userRoles?.includes("admin") && (
                 <button className="btn btn-ghost" onClick={() => setShowAddUser(true)} title="Add User">
                   + Add User
                 </button>
@@ -316,7 +316,7 @@ export default function ProjectsPage({
                 Budget vs Actuals
               </button>
             )}
-            {userRole === "admin" && (
+            {userRoles?.includes("admin") && (
               <button className="mobile-nav-item" onClick={() => { setShowAddUser(true); setMobileMenuOpen(false); }}>
                 + Add User
               </button>
@@ -344,7 +344,7 @@ export default function ProjectsPage({
               <span className="badge beige">Feasibility Summary</span>
             </div>
           </div>
-          {(userRole === "admin" || userRole === "business_development") && (
+          {(userRoles?.includes("admin") || userRoles?.includes("business_development")) && (
             <div className="dashboard-header-actions">
               <input
                 type="text"
@@ -532,7 +532,7 @@ export default function ProjectsPage({
                   <div className="th">Profit (AED)</div>
                   <div className="th">Margin</div>
                   <div className="th">Units</div>
-                  {userRole === "admin" && <div className="th">Action</div>}
+                  {userRoles?.includes("admin") && <div className="th">Action</div>}
                 </div>
                 {projects.map((project) => {
                   const statusBadge = getStatusBadge(project);
@@ -572,7 +572,7 @@ export default function ProjectsPage({
                       <div className="td units-cell">
                         {metrics ? formatInt(metrics.totalUnits) : "—"}
                       </div>
-                      {userRole === "admin" && (
+                      {userRoles?.includes("admin") && (
                         <div className="td action-cell">
                           {confirmDeleteId === project.id ? (
                             <div className="delete-confirm-inline">
@@ -671,16 +671,21 @@ export default function ProjectsPage({
             </label>
 
             <label style={modalStyles.label}>
-              Department / Role
+              Department / Roles
               <select
-                value={newUser.role}
-                onChange={(e) => setNewUser((prev) => ({ ...prev, role: e.target.value as UserRole }))}
-                style={modalStyles.input}
+                multiple
+                value={newUser.roles}
+                onChange={(e) => {
+                  const selected = Array.from(e.target.selectedOptions, (o) => o.value as UserRole);
+                  setNewUser((prev) => ({ ...prev, roles: selected }));
+                }}
+                style={{ ...modalStyles.input, height: "120px" }}
               >
                 {AVAILABLE_ROLES.map((r) => (
                   <option key={r.value} value={r.value}>{r.label}</option>
                 ))}
               </select>
+              <span style={{ fontSize: "11px", color: "#8B7355", marginTop: "4px" }}>Hold Ctrl/Cmd to select multiple roles</span>
             </label>
 
             <div style={modalStyles.actions}>
@@ -719,7 +724,7 @@ export default function ProjectsPage({
                 <div key={u.id} style={modalStyles.userRow}>
                   <div style={modalStyles.userInfo}>
                     <span style={modalStyles.userName}>{u.username}</span>
-                    <span style={modalStyles.userRole}>{u.role}</span>
+                    <span style={modalStyles.userRole}>{u.roles.join(", ")}</span>
                   </div>
                   {resetPwId === u.id ? (
                     <div style={modalStyles.resetForm}>

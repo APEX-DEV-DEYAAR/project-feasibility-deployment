@@ -4,12 +4,11 @@ interface DeyaarLogoProps {
   variant?: "brown" | "orange" | "beige" | "dark" | "light";
 }
 
-// Official Deyaar logos from Logo Agent Pack
 const LOGO_PATHS = {
-  brown: "02%20LOGO%20AGENT%20PACK/LOGOS%20IN%20COLORS/DEYAAR_LOGO_EN_BROWN.png",
-  orange: "02%20LOGO%20AGENT%20PACK/LOGOS%20IN%20COLORS/DEYAAR_LOGO_EN_ORANGE.png",
-  beige: "02%20LOGO%20AGENT%20PACK/LOGOS%20IN%20COLORS/DEYAAR_LOGO_EN_BEIGE.png",
-  dark: "02%20LOGO%20AGENT%20PACK/LOGOS%20IN%20COLORS/DEYAAR_LOGO_EN_DARK.png",
+  brown: "/DEYAAR_LOGO_EN_BROWN.png",
+  orange: "/DEYAAR_LOGO_EN_ORANGE.png",
+  beige: "/DEYAAR_LOGO_EN_BEIGE.png",
+  dark: "/DEYAAR_LOGO_EN_DARK.png",
 };
 
 // Fallback to CDN if local files not available

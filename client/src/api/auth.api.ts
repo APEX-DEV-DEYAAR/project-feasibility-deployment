@@ -35,17 +35,21 @@ export async function logout(): Promise<void> {
 export async function registerUser(
   username: string,
   password: string,
-  role: UserRole,
+  roles: UserRole[],
 ): Promise<AuthUser> {
-  return apiClient.post<AuthUser>("/auth/register", { username, password, role });
+  return apiClient.post<AuthUser>("/auth/register", { username, password, roles });
 }
 
 export interface UserListItem {
   id: number;
   username: string;
-  role: UserRole;
+  roles: UserRole[];
   createdAt: string;
   updatedAt: string;
+}
+
+export async function updateUserRoles(userId: number, roles: UserRole[]): Promise<void> {
+  await apiClient.put<{ message: string }>(`/auth/users/${userId}/roles`, { roles });
 }
 
 export async function fetchUsers(): Promise<UserListItem[]> {

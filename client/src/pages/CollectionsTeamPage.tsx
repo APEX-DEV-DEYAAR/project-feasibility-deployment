@@ -6,10 +6,10 @@ interface CollectionsTeamPageProps {
   onBack: () => void;
   onLogout?: () => void;
   onRefresh?: () => void;
-  onNavigateToForecast?: () => void;
+  extraNavButtons?: { label: string; onClick: () => void }[];
 }
 
-export default function CollectionsTeamPage({ projects, onBack, onLogout, onRefresh, onNavigateToForecast }: CollectionsTeamPageProps) {
+export default function CollectionsTeamPage({ projects, onBack, onLogout, onRefresh, extraNavButtons }: CollectionsTeamPageProps) {
   return (
     <TeamCostPage
       teamCode="collections"
@@ -19,9 +19,7 @@ export default function CollectionsTeamPage({ projects, onBack, onLogout, onRefr
       onBack={onBack}
       onLogout={onLogout}
       onRefresh={onRefresh}
-      extraNavButtons={onNavigateToForecast ? [
-        { label: "Collections Forecast", onClick: onNavigateToForecast },
-      ] : undefined}
+      extraNavButtons={extraNavButtons}
     />
   );
 }

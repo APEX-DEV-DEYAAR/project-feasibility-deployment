@@ -23,7 +23,7 @@ export interface AppUser {
   id: number;
   username: string;
   passwordHash: string;
-  role: UserRole;
+  roles: UserRole[];
   createdAt: string;
   updatedAt: string;
 }
@@ -31,7 +31,7 @@ export interface AppUser {
 export interface AuthPayload {
   userId: number;
   username: string;
-  role: UserRole;
+  roles: UserRole[];
 }
 
 export interface QueryResult<T = Record<string, unknown>> {

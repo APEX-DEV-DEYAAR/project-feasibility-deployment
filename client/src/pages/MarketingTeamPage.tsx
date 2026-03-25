@@ -6,17 +6,19 @@ interface MarketingTeamPageProps {
   onBack: () => void;
   onLogout?: () => void;
   onRefresh?: () => void;
+  extraNavButtons?: { label: string; onClick: () => void }[];
 }
 
-export default function MarketingTeamPage({ projects, onBack, onLogout, onRefresh }: MarketingTeamPageProps) {
+export default function MarketingTeamPage({ projects, onBack, onLogout, onRefresh, extraNavButtons }: MarketingTeamPageProps) {
   return (
     <TeamCostPage
       teamCode="marketing"
-      teamName="Finance Team"
+      teamName="Marketing Team"
       projects={projects}
       onBack={onBack}
       onLogout={onLogout}
       onRefresh={onRefresh}
+      extraNavButtons={extraNavButtons}
     />
   );
 }

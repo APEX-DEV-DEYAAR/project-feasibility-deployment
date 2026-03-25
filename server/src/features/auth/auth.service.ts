@@ -27,7 +27,7 @@ export class AuthService {
     const payload: AuthPayload = {
       userId: user.id,
       username: user.username,
-      role: user.role,
+      roles: user.roles,
     };
 
     const token = jwt.sign(payload, this.jwtSecret, { expiresIn: "30m" });
@@ -45,15 +45,15 @@ export class AuthService {
 
   /** Seed default department users if they don't already exist. */
   async seedDefaultUser(): Promise<void> {
-    const seedUsers: { username: string; password: string; role: UserRole }[] = [
-      { username: "admin", password: "Password@1234", role: "admin" },
-      { username: "commercial", password: "Password@1234", role: "commercial" },
-      { username: "sales", password: "Password@1234", role: "sales" },
-      { username: "finance", password: "Password@1234", role: "finance" },
-      { username: "collections", password: "Password@1234", role: "collections" },
-      { username: "marketing", password: "Password@1234", role: "marketing" },
-      { username: "business_development", password: "Password@1234", role: "business_development" },
-      { username: "cfo", password: "Password@1234", role: "cfo" },
+    const seedUsers: { username: string; password: string; roles: string }[] = [
+      { username: "admin", password: "Password@1234", roles: "admin" },
+      { username: "commercial", password: "Password@1234", roles: "commercial" },
+      { username: "sales", password: "Password@1234", roles: "sales" },
+      { username: "finance", password: "Password@1234", roles: "finance" },
+      { username: "collections", password: "Password@1234", roles: "collections" },
+      { username: "marketing", password: "Password@1234", roles: "marketing" },
+      { username: "business_development", password: "Password@1234", roles: "business_development" },
+      { username: "cfo", password: "Password@1234", roles: "cfo" },
     ];
 
     for (const seed of seedUsers) {
@@ -62,8 +62,8 @@ export class AuthService {
 
       this.validatePassword(seed.password);
       const hash = await bcrypt.hash(seed.password, BCRYPT_ROUNDS);
-      await this.userRepo.create(seed.username, hash, seed.role);
-      logger.info({ username: seed.username, role: seed.role }, "Seeded user");
+      await this.userRepo.create(seed.username, hash, seed.roles);
+      logger.info({ username: seed.username, roles: seed.roles }, "Seeded user");
     }
   }
 
@@ -103,7 +103,7 @@ export class AuthService {
     }
   }
 
-  async register(username: string, password: string, role: UserRole): Promise<AuthPayload> {
+  async register(username: string, password: string, roles: string): Promise<AuthPayload> {
     this.validatePassword(password);
     const existing = await this.userRepo.findByUsername(username);
     if (existing) {
@@ -111,8 +111,16 @@ export class AuthService {
     }
 
     const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-    const user = await this.userRepo.create(username, hash, role);
+    const user = await this.userRepo.create(username, hash, roles);
 
-    return { userId: user.id, username: user.username, role: user.role };
+    return { userId: user.id, username: user.username, roles: user.roles };
+  }
+
+  async updateUserRoles(userId: number, roles: string): Promise<void> {
+    const user = await this.userRepo.findById(userId);
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+    await this.userRepo.updateRoles(userId, roles);
   }
 }

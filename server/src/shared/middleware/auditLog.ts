@@ -100,7 +100,7 @@ export function createAuditLog(auditRepo: AuditLogRepository) {
       res.on("finish", () => {
         const entry = {
           username: req.user?.username ?? "anonymous",
-          role: req.user?.role ?? "unknown",
+          role: req.user?.roles?.join(",") ?? "unknown",
           method: req.method,
           path: req.originalUrl,
           statusCode: res.statusCode,
