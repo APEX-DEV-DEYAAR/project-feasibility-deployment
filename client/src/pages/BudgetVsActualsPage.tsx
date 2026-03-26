@@ -87,17 +87,19 @@ function KPICard({
   title, 
   budget, 
   actual, 
-  projected, 
-  variance, 
-  variancePct, 
+  projected,
+  blended,
+  variance,
+  variancePct,
   type,
-  icon 
-}: { 
-  title: string; 
-  budget: number; 
-  actual: number; 
+  icon
+}: {
+  title: string;
+  budget: number;
+  actual: number;
   projected: number;
-  variance: number; 
+  blended: number;
+  variance: number;
   variancePct: number;
   type: "revenue" | "cost" | "profit";
   icon: string;
@@ -114,7 +116,7 @@ function KPICard({
       <div className="exec-kpi-values">
         <div className="exec-kpi-main">
           <span className="exec-kpi-label">Blended</span>
-          <span className="exec-kpi-value">{formatM(actual + projected)}M</span>
+          <span className="exec-kpi-value">{formatM(blended)}M</span>
         </div>
         <div className="exec-kpi-secondary">
           <div>
@@ -189,7 +191,7 @@ function TableRow({
         <span className="actual-indicator">●</span> {formatM(row.actual)}
       </td>
       <td className="amount-cell projected">
-        <span className="projected-indicator">●</span> {formatM(row.projected)}
+        <span className="projected-indicator">●</span> {row.lineItem === 'Sales Performance (TSV)'?formatM(row.budget -row.actual) :formatM(row.projected)}
       </td>
       <td className="amount-cell blended">
         <strong>{formatM(row.blended)}</strong>
@@ -346,7 +348,7 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
   const salesPerfRows = mergedData.filter((row) => row.type === "sales");
   const salesPerfBudget = effectiveMetrics ? (effectiveMetrics.revenue.totalInflows ?? effectiveMetrics.revenue.total ?? 0) : 0;
   const salesPerfActual = salesPerfRows.reduce((sum, row) => sum + row.actual, 0);
-  const salesPerfProjected = salesPerfRows.reduce((sum, row) => sum + row.projected, 0);
+  const salesPerfProjected = salesPerfBudget - salesPerfActual; //salesPerfRows.reduce((sum, row) => sum + row.projected, 0);
   const salesPerfBlended = salesPerfRows.reduce((sum, row) => sum + row.blended, 0);
   const salesPerfVariance = salesPerfBlended - salesPerfBudget;
   const salesPerfVariancePct = salesPerfBudget !== 0 ? (salesPerfVariance / salesPerfBudget) * 100 : 0;
@@ -390,16 +392,22 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
   const totalOutflowBlended = totalOperatingOutflowBlended + totalCofBlended;
   const totalOutflowVariance = totalOutflowBudget - totalOutflowBlended;
 
-  const grossProfitBudget = totalRevBudget - totalOperatingOutflowBudget;
-  const grossProfitActual = totalRevActual - totalOperatingOutflowActual;
-  const grossProfitProjected = totalRevProjected - totalOperatingOutflowProjected;
-  const grossProfitBlended = totalRevBlended - totalOperatingOutflowBlended;
+  // Use Sales Performance (TSV) as revenue for profit calculations, not Collections
+  const profitRevBudget = hasSalesPerf ? salesPerfBudget : totalRevBudget;
+  const profitRevActual = hasSalesPerf ? salesPerfActual : totalRevActual;
+  const profitRevProjected = hasSalesPerf ? salesPerfProjected : totalRevProjected;
+  const profitRevBlended = hasSalesPerf ? salesPerfBlended : totalRevBlended;
+
+  const grossProfitBudget = profitRevBudget - totalOperatingOutflowBudget;
+  const grossProfitActual = profitRevActual - totalOperatingOutflowActual;
+  const grossProfitProjected = profitRevProjected - totalOperatingOutflowProjected;
+  const grossProfitBlended = profitRevBlended - totalOperatingOutflowBlended;
   const grossProfitVariance = grossProfitBlended - grossProfitBudget;
 
-  const netProfitBudget = totalRevBudget - totalOutflowBudget;
-  const netProfitActual = totalRevActual - totalOutflowActual;
-  const netProfitProjected = totalRevProjected - totalOutflowProjected;
-  const netProfitBlended = totalRevBlended - totalOutflowBlended;
+  const netProfitBudget = profitRevBudget - totalOutflowBudget;
+  const netProfitActual = profitRevActual - totalOutflowActual;
+  const netProfitProjected = profitRevProjected - totalOutflowProjected;
+  const netProfitBlended = profitRevBlended - totalOutflowBlended;
   const netProfitVariance = netProfitBlended - netProfitBudget;
 
   const feasibilityLabel = feasibility ? `v${feasibility.version ?? 1} (${feasibility.status})` : "No feasibility";
@@ -593,17 +601,18 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
               <div className="bva-kpi-grid">
                 {hasSalesPerf && (
                   <KPICard
-                    title="Sales (TSV)"
+                    title="Gross Sales"
                     budget={salesPerfBudget}
                     actual={salesPerfActual}
                     projected={salesPerfProjected}
+                    blended={salesPerfBlended}
                     variance={salesPerfVariance}
                     variancePct={salesPerfVariancePct}
                     type="revenue"
                     icon="📈"
                   />
                 )}
-                <KPICard
+                {/* <KPICard
                   title="Collections"
                   budget={totalRevBudget}
                   actual={totalRevActual}
@@ -612,12 +621,13 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
                   variancePct={revVariancePct}
                   type="revenue"
                   icon="💰"
-                />
+                /> */}
                 <KPICard
                   title="Operating Costs"
                   budget={totalOperatingOutflowBudget}
                   actual={totalOperatingOutflowActual}
                   projected={totalOperatingOutflowProjected}
+                  blended={totalOperatingOutflowBlended}
                   variance={totalOperatingOutflowVariance}
                   variancePct={outflowVariancePct}
                   type="cost"
@@ -628,6 +638,7 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
                   budget={netProfitBudget}
                   actual={netProfitActual}
                   projected={netProfitProjected}
+                  blended={netProfitBlended}
                   variance={netProfitVariance}
                   variancePct={netProfitVariancePct}
                   type="profit"
@@ -706,7 +717,7 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
                               <td className="team-cell"></td>
                               <td className="amount-cell budget"><strong>{formatM(salesPerfBudget)}</strong></td>
                               <td className="amount-cell actual"><strong>{formatM(salesPerfActual)}</strong></td>
-                              <td className="amount-cell projected"><strong>{formatM(salesPerfProjected)}</strong></td>
+                              <td className="amount-cell projected"><strong>{/*formatM(salesPerfProjected)*/formatM(salesPerfActual>salesPerfBudget? 0.0 :salesPerfBudget - salesPerfActual)}</strong></td>
                               <td className="amount-cell blended"><strong>{formatM(salesPerfBlended)}</strong></td>
                               <td className={`amount-cell variance ${salesPerfVariance >= 0 ? 'positive' : 'negative'}`}>
                                 <strong>{formatM(salesPerfVariance)}</strong>

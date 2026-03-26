@@ -100,21 +100,31 @@ export default function TeamCostPage({ teamCode, teamName, projects, showCollect
       const data = await fetchMonthlyCosts(projectId, undefined, teamCode);
       let costData = data;
 
+      // Load collections data first so we know which years exist
+      let collectionsRows: MonthlyCollectionsRow[] = [];
+      if (showCollections) {
+        collectionsRows = await fetchMonthlyCollections(projectId);
+      }
+
       // If no cost categories (e.g. collections team) but showing revenue,
-      // generate empty 12-month rows so the grid appears
+      // generate empty month rows for every year that has collections data
       if (costData.length === 0 && showCollections) {
-        costData = Array.from({ length: 12 }, (_, i) => ({
-          year: currentYear,
-          month: i + 1,
-          monthName: MONTH_NAMES_FULL[i],
-          categories: [],
-        }));
+        const collectionsYears = new Set(collectionsRows.map(r => r.year));
+        if (collectionsYears.size === 0) collectionsYears.add(currentYear);
+        const years = Array.from(collectionsYears).sort((a, b) => a - b);
+        costData = years.flatMap(yr =>
+          Array.from({ length: 12 }, (_, i) => ({
+            year: yr,
+            month: i + 1,
+            monthName: MONTH_NAMES_FULL[i],
+            categories: [],
+          }))
+        );
       }
 
       setMonthlyData(costData);
       setEditedData(new Map());
       if (showCollections) {
-        const collectionsRows = await fetchMonthlyCollections(projectId);
         setCollectionsData(collectionsRows);
         setEditedCollections(new Map());
       }

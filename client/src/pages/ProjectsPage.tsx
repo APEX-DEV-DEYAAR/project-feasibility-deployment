@@ -41,6 +41,7 @@ interface ProjectsPageProps {
   onNavigateToCollectionsForecast?: () => void;
   onNavigateToSalesTracking?: () => void;
   onNavigateToBudget?: () => void;
+  onNavigateToBudgetAnalysis?: () => void;
   userRoles?: UserRole[];
   userName?: string;
   onLogout?: () => void;
@@ -64,6 +65,7 @@ export default function ProjectsPage({
   onNavigateToCollectionsForecast,
   onNavigateToSalesTracking,
   onNavigateToBudget,
+  onNavigateToBudgetAnalysis,
   userRoles,
   userName,
   onLogout,
@@ -251,6 +253,11 @@ export default function ProjectsPage({
                   Budget vs Actuals
                 </button>
               )}
+              {onNavigateToBudgetAnalysis && (
+                <button className="btn btn-ghost" onClick={onNavigateToBudgetAnalysis} title="Budget Analysis">
+                  Budget Analysis
+                </button>
+              )}
               {userName && (
                 <span className="topbar-tag" style={{ textTransform: "capitalize" }}>{userName}</span>
               )}
@@ -314,6 +321,11 @@ export default function ProjectsPage({
             {onNavigateToBudget && (
               <button className="mobile-nav-item" onClick={() => { onNavigateToBudget(); setMobileMenuOpen(false); }}>
                 Budget vs Actuals
+              </button>
+            )}
+            {onNavigateToBudgetAnalysis && (
+              <button className="mobile-nav-item" onClick={() => { onNavigateToBudgetAnalysis(); setMobileMenuOpen(false); }}>
+                Budget Analysis
               </button>
             )}
             {userRoles?.includes("admin") && (

@@ -35,6 +35,7 @@ const CollectionsTeamPage = lazy(() => import("./pages/CollectionsTeamPage"));
 const CollectionsForecastPage = lazy(() => import("./pages/CollectionsForecastPage"));
 const SalesTrackingPage = lazy(() => import("./pages/SalesTrackingPage"));
 const BudgetVsActualsPage = lazy(() => import("./pages/BudgetVsActualsPage"));
+const BudgetAnalysisPage = lazy(() => import("./pages/BudgetAnalysisPage"));
 
 // Extended project type with metrics for the feasibility portfolio dashboard
 interface ProjectWithMetrics extends ProjectSummary {
@@ -50,13 +51,13 @@ interface ToastItem {
 // ---- Role-based screen access ----
 // admin sees everything, other roles see specific screens
 const ROLE_SCREENS: Record<UserRole, Set<string>> = {
-  admin: new Set(["projects", "feasibility", "portfolio", "commercial", "salesTracking", "sales", "marketing", "collections", "budget"]),
+  admin: new Set(["projects", "feasibility", "portfolio", "commercial", "salesTracking", "sales", "marketing", "collections", "budget"/*, "budgetAnalysis"*/]),
   commercial: new Set([ "commercial"]),
   sales: new Set(["sales", "salesTracking"]),
   collections: new Set(["collections"]),
   finance: new Set(["marketing","commercial"]),
   marketing : new Set(["marketing"]),
-  cfo : new Set(["projects", "feasibility", "portfolio", "budget"]),
+  cfo : new Set(["projects", "feasibility", "portfolio", "budget"/*, "budgetAnalysis"*/]),
   business_development : new Set(["projects", "feasibility"])
 };
 
@@ -75,6 +76,7 @@ const SCREEN_LABELS: Record<string, string> = {
   marketing: "Marketing",
   collections: "Collections",
   budget: "Budget vs Actuals",
+  budgetAnalysis: "Budget Analysis",
 };
 
 // ---- Restore session from localStorage ----
@@ -130,7 +132,7 @@ export default function App() {
 // ---- The main app, shown only when logged in ----
 
 // Determine the landing screen for a user's roles — first allowed screen wins
-function getDefaultScreen(roles: UserRole[]): "projects" | "feasibility" | "portfolio" | "commercial" | "sales" | "salesTracking" | "marketing" | "collections" | "collectionsForecast" | "budget" {
+function getDefaultScreen(roles: UserRole[]): "projects" | "feasibility" | "portfolio" | "commercial" | "sales" | "salesTracking" | "marketing" | "collections" | "collectionsForecast" | "budget" | "budgetAnalysis" {
   const screens = ["projects", "commercial", "sales", "marketing", "collections", "collectionsForecast", "budget"] as const;
   for (const s of screens) {
     if (canAccess(roles, s)) return s;
@@ -139,7 +141,7 @@ function getDefaultScreen(roles: UserRole[]): "projects" | "feasibility" | "port
 }
 
 function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
-  const [screen, setScreen] = useState<"projects" | "feasibility" | "portfolio" | "commercial" | "sales" | "salesTracking" | "marketing" | "collections" | "collectionsForecast" | "budget">(getDefaultScreen(user.roles));
+  const [screen, setScreen] = useState<"projects" | "feasibility" | "portfolio" | "commercial" | "sales" | "salesTracking" | "marketing" | "collections" | "collectionsForecast" | "budget" | "budgetAnalysis">(getDefaultScreen(user.roles));
   const [projects, setProjects] = useState<ProjectWithMetrics[]>([]);
   const [newProjectName, setNewProjectName] = useState("");
   const [model, setModel] = useState<ClientModel>(emptyModel());
@@ -444,6 +446,7 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
           onNavigateToCollectionsForecast={canAccess(user.roles, "collectionsForecast") ? () => setScreen("collectionsForecast") : undefined}
           onNavigateToSalesTracking={canAccess(user.roles, "salesTracking") ? () => setScreen("salesTracking") : undefined}
           onNavigateToBudget={canAccess(user.roles, "budget") ? () => setScreen("budget") : undefined}
+          onNavigateToBudgetAnalysis={canAccess(user.roles, "budgetAnalysis") ? () => setScreen("budgetAnalysis") : undefined}
           userRoles={user.roles}
           userName={user.username}
           onLogout={onLogout}
@@ -502,6 +505,13 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
               onLogout={!canAccess(user.roles, "projects") ? onLogout : undefined}
               onRefresh={!canAccess(user.roles, "projects") ? loadProjects : undefined}
               onNavigateToSales={canAccess(user.roles, "sales") ? () => setScreen("sales") : undefined}
+            />
+          ) : screen === "budgetAnalysis" ? (
+            <BudgetAnalysisPage
+              projects={projects}
+              onBack={backToProjects}
+              onLogout={!canAccess(user.roles, "projects") ? onLogout : undefined}
+              onRefresh={!canAccess(user.roles, "projects") ? loadProjects : undefined}
             />
           ) : screen === "budget" ? (
             <BudgetVsActualsPage
