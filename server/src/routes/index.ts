@@ -8,6 +8,7 @@ import { collectionsRoutes } from "../features/collections/revenue.routes.js";
 import { salesRoutes } from "../features/sales-tracking/sales.routes.js";
 import { collectionsForecastRoutes } from "../features/collections-forecast/collections-forecast.routes.js";
 import { cfoDashboardRoutes } from "../features/cfo-dashboard/cfo-dashboard.routes.js";
+import { projectActualsRoutes } from "../features/project-actuals/project-actuals.routes.js";
 import { authMiddleware, csrfGuard } from "../features/auth/auth.middleware.js";
 import { createAuditLog } from "../shared/middleware/auditLog.js";
 import type { AuditLogRepository } from "../shared/middleware/audit-log.repository.js";
@@ -18,6 +19,7 @@ import type { CollectionsController } from "../features/collections/revenue.cont
 import type { SalesController } from "../features/sales-tracking/sales.controller.js";
 import type { CollectionsForecastController } from "../features/collections-forecast/collections-forecast.controller.js";
 import type { CfoDashboardController } from "../features/cfo-dashboard/cfo-dashboard.controller.js";
+import type { ProjectActualsController } from "../features/project-actuals/project-actuals.controller.js";
 import type { AuthService } from "../features/auth/auth.service.js";
 
 interface Services {
@@ -28,6 +30,7 @@ interface Services {
   salesController: SalesController;
   collectionsForecastController: CollectionsForecastController;
   cfoDashboardController: CfoDashboardController;
+  projectActualsController: ProjectActualsController;
   authService: AuthService;
   auditLogRepo: AuditLogRepository;
 }
@@ -40,6 +43,7 @@ export function apiRoutes({
   salesController,
   collectionsForecastController,
   cfoDashboardController,
+  projectActualsController,
   authService,
   auditLogRepo,
 }: Services): Router {
@@ -63,6 +67,7 @@ export function apiRoutes({
   router.use(salesRoutes(salesController));
   router.use(collectionsForecastRoutes(collectionsForecastController));
   router.use(cfoDashboardRoutes(cfoDashboardController));
+  router.use(projectActualsRoutes(projectActualsController));
 
   return router;
 }

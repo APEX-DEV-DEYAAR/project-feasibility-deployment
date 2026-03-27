@@ -1,6 +1,7 @@
 import { CostTrackingRepository } from "./cost-tracking.repository.js";
 import { CollectionsRepository } from "../collections/revenue.repository.js";
 import type { SalesRepository } from "../sales-tracking/sales.repository.js";
+import type { ProjectActualsRepository } from "../project-actuals/project-actuals.repository.js";
 import type {
   CostCategory,
   ProjectMonthlyCost,
@@ -24,7 +25,8 @@ export class CostTrackingService {
   constructor(
     private readonly repo: CostTrackingRepository,
     private readonly collectionsRepo?: CollectionsRepository,
-    private readonly salesRepo?: SalesRepository
+    private readonly salesRepo?: SalesRepository,
+    private readonly projectActualsRepo?: ProjectActualsRepository
   ) {}
 
   // ---- Categories ----
@@ -211,11 +213,15 @@ export class CostTrackingService {
       ? this.salesRepo.getBvaSalesAggregate(projectId).catch(() => null)
       : Promise.resolve(null);
 
-    const [costAggregates, revenueAggregate, salesAggregate] = await Promise.all([
+    const [costAggregates, revenueAggregate, salesAggregate, projectActuals] = await Promise.all([
       this.repo.getBvaCostAggregates(projectId),
       this.collectionsRepo?.getBvaRevenueAggregate(projectId) ?? null,
       safeSalesAggregate,
+      this.projectActualsRepo?.findByProject(projectId) ?? [],
     ]);
+
+    // Build a lookup of project-level actuals (e.g. Land)
+    const actualsMap = new Map(projectActuals.map((a) => [a.lineItem, a.actualAmount]));
 
     const rows: BudgetVsActualRow[] = [];
 
@@ -296,6 +302,28 @@ export class CostTrackingService {
       });
 
       teamActivity.collections = revenueAggregate.lastActivity;
+    }
+
+    // Inject project-level actuals (e.g. Land) as tracked rows
+    // so the frontend can merge them with feasibility budget values
+    for (const [lineItem, actualAmount] of actualsMap) {
+      const existing = rows.find((r) => r.lineItem === lineItem);
+      if (existing) {
+        existing.actual = actualAmount;
+        existing.blended = actualAmount;
+      } else {
+        rows.push({
+          lineItem,
+          type: "cost",
+          team: "revenue",
+          budget: 0,
+          actual: actualAmount,
+          projected: 0,
+          blended: actualAmount,
+          variance: -actualAmount,
+          variancePct: 0,
+        });
+      }
     }
 
     return { rows, teamActivity };

@@ -15,6 +15,8 @@ import { CollectionsForecastRepository } from "./features/collections-forecast/c
 import { CollectionsLookupRepository } from "./features/collections-forecast/collections-lookup.repository.js";
 import { UserRepository } from "./features/auth/user.repository.js";
 import { AuditLogRepository } from "./shared/middleware/audit-log.repository.js";
+import { ProjectActualsRepository } from "./features/project-actuals/project-actuals.repository.js";
+import { ProjectActualsController } from "./features/project-actuals/project-actuals.controller.js";
 import { ProjectService } from "./features/project/project.service.js";
 import { FeasibilityService } from "./features/feasibility/feasibility.service.js";
 import { CostTrackingService } from "./features/cost-tracking/cost-tracking.service.js";
@@ -51,6 +53,8 @@ async function start(): Promise<void> {
   const collectionsLookupRepo = new CollectionsLookupRepository(db);
   const userRepo = new UserRepository(db);
   const auditLogRepo = new AuditLogRepository(db);
+  const projectActualsRepo = new ProjectActualsRepository(db);
+  await projectActualsRepo.ensureTable();
   await reportingRepo.backfill();
   await relationalRepo.backfillFromJson();
 
@@ -67,8 +71,9 @@ async function start(): Promise<void> {
   const salesService = new SalesService(salesRepo);
   const cfoDashboardService = new CfoDashboardService(cfoDashboardRepo);
   const collectionsForecastService = new CollectionsForecastService(collectionsForecastRepo, collectionsLookupRepo);
-  const costTrackingService = new CostTrackingService(costTrackingRepo, collectionsRepo, salesRepo);
+  const costTrackingService = new CostTrackingService(costTrackingRepo, collectionsRepo, salesRepo, projectActualsRepo);
   const authService = new AuthService(userRepo, config.jwtSecret);
+  const projectActualsController = new ProjectActualsController(projectActualsRepo);
   const costTrackingController = new CostTrackingController(costTrackingService);
   const collectionsController = new CollectionsController(collectionsService);
   const salesController = new SalesController(salesService);
@@ -86,6 +91,7 @@ async function start(): Promise<void> {
     salesController,
     collectionsForecastController,
     cfoDashboardController,
+    projectActualsController,
     authService,
     auditLogRepo,
   });

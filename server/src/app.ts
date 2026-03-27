@@ -12,6 +12,7 @@ import type { CollectionsController } from "./features/collections/revenue.contr
 import type { SalesController } from "./features/sales-tracking/sales.controller.js";
 import type { CollectionsForecastController } from "./features/collections-forecast/collections-forecast.controller.js";
 import type { CfoDashboardController } from "./features/cfo-dashboard/cfo-dashboard.controller.js";
+import type { ProjectActualsController } from "./features/project-actuals/project-actuals.controller.js";
 import type { AuthService } from "./features/auth/auth.service.js";
 import type { AuditLogRepository } from "./shared/middleware/audit-log.repository.js";
 
@@ -23,6 +24,7 @@ interface Services {
   salesController: SalesController;
   collectionsForecastController: CollectionsForecastController;
   cfoDashboardController: CfoDashboardController;
+  projectActualsController: ProjectActualsController;
   authService: AuthService;
   auditLogRepo: AuditLogRepository;
 }

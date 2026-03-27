@@ -191,10 +191,10 @@ function TableRow({
         <span className="actual-indicator">●</span> {formatM(row.actual)}
       </td>
       <td className="amount-cell projected">
-        <span className="projected-indicator">●</span> {row.lineItem === 'Sales Performance (TSV)'?formatM(row.budget -row.actual) :formatM(row.projected)}
+        <span className="projected-indicator">●</span> {row.lineItem === 'Sales Performance (TSV)'? row.budget > row.actual ? formatM(row.budget -row.actual) : formatM(0.0) :formatM(row.projected)}
       </td>
       <td className="amount-cell blended">
-        <strong>{formatM(row.blended)}</strong>
+        <strong>{row.lineItem === 'Sales Performance (TSV)'  ? row.budget > row.actual ? formatM(row.budget) :formatM(row.actual) :formatM(row.blended)}</strong>
       </td>
       <td className={`amount-cell variance ${varianceGood ? 'positive' : 'negative'}`}>
         {formatM(row.variance ?? 0)}
@@ -348,14 +348,14 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
   const salesPerfRows = mergedData.filter((row) => row.type === "sales");
   const salesPerfBudget = effectiveMetrics ? (effectiveMetrics.revenue.totalInflows ?? effectiveMetrics.revenue.total ?? 0) : 0;
   const salesPerfActual = salesPerfRows.reduce((sum, row) => sum + row.actual, 0);
-  const salesPerfProjected = salesPerfBudget - salesPerfActual; //salesPerfRows.reduce((sum, row) => sum + row.projected, 0);
-  const salesPerfBlended = salesPerfRows.reduce((sum, row) => sum + row.blended, 0);
-  const salesPerfVariance = salesPerfBlended - salesPerfBudget;
+  const salesPerfProjected = salesPerfActual > salesPerfBudget ? 0.0 : salesPerfBudget - salesPerfActual; //salesPerfRows.reduce((sum, row) => sum + row.projected, 0);
+  const salesPerfBlended =  salesPerfActual > salesPerfBudget ? salesPerfActual : salesPerfBudget/*salesPerfRows.reduce((sum, row) => sum + row.blended, 0)*/;
+  const salesPerfVariance = /*salesPerfBlended - salesPerfBudget*/ salesPerfActual> salesPerfBudget ? salesPerfActual - salesPerfBudget : 0;
   const salesPerfVariancePct = salesPerfBudget !== 0 ? (salesPerfVariance / salesPerfBudget) * 100 : 0;
   const hasSalesPerf = salesPerfRows.length > 0 && (salesPerfActual > 0 || salesPerfProjected > 0);
 
-  const costRows = mergedData.filter((row) => row.type === "cost" && row.team !== "sales" && row.budget > 0);
-  const revenueRows = mergedData.filter((row) => row.type === "revenue" && row.budget > 0);
+  const costRows = mergedData.filter((row) => row.type === "cost" && row.team !== "sales");
+  const revenueRows = mergedData.filter((row) => row.type === "revenue");
 
   const feasibilityOnlyCosts = costRows.filter((row) => row.team === "revenue");
   const commercialCosts = costRows.filter((row) => row.team === "commercial");
@@ -363,6 +363,18 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
   const cofRows = feasibilityOnlyCosts.filter((row) => row.lineItem === "Cost of Funds");
   const nonCofFeasibilityCosts = feasibilityOnlyCosts.filter((row) => row.lineItem !== "Cost of Funds");
   const operatingCostRows = [...nonCofFeasibilityCosts, ...commercialCosts, ...marketingCosts];
+
+  // Combined Sales & Marketing row
+  const totalMktBudget = marketingCosts.reduce((sum, row) => sum + row.budget, 0);
+  const totalMktActual = marketingCosts.reduce((sum, row) => sum + row.actual, 0);
+  const totalMktProjected = marketingCosts.reduce((sum, row) => sum + row.projected, 0);
+  const totalMktBlended = marketingCosts.reduce((sum, row) => sum + row.blended, 0);
+
+  const salesMktBudget = totalSalesBudget + totalMktBudget;
+  const salesMktActual = totalSalesActual + totalMktActual;
+  const salesMktProjected = totalSalesProjected + totalMktProjected;
+  const salesMktBlended = totalSalesBlended + totalMktBlended;
+  const salesMktVariance = salesMktBudget - salesMktBlended;
 
   const totalRevBudget = revenueRows.reduce((sum, row) => sum + row.budget, 0);
   const totalRevActual = revenueRows.reduce((sum, row) => sum + row.actual, 0);
@@ -428,7 +440,7 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
       team: "Sales Tracking",
       budget: salesPerfBudget,
       actual: salesPerfActual,
-      projected: salesPerfProjected,
+      projected: /*salesPerfProjected*/ salesPerfActual > salesPerfBudget ? 0.0 :salesPerfBudget - salesPerfActual,
       kind: "inflow" as const,
     }] : []),
     ...revenueRows.map((row) => ({
@@ -455,22 +467,14 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
       projected: row.projected,
       kind: "outflow" as const,
     })),
-    ...(totalSalesBudget > 0 ? [{
-      label: "Sales Expenses",
-      team: "Sales",
-      budget: totalSalesBudget,
-      actual: totalSalesActual,
-      projected: totalSalesProjected,
+    {
+      label: "Sales & Marketing",
+      team: "Sales & Marketing",
+      budget: salesMktBudget,
+      actual: salesMktActual,
+      projected: salesMktProjected,
       kind: "outflow" as const,
-    }] : []),
-    ...marketingCosts.map((row) => ({
-      label: row.lineItem,
-      team: "Marketing",
-      budget: row.budget,
-      actual: row.actual,
-      projected: row.projected,
-      kind: "outflow" as const,
-    })),
+    },
     ...cofRows.map((row) => ({
       label: row.lineItem,
       team: "Feasibility",
@@ -605,7 +609,7 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
                     budget={salesPerfBudget}
                     actual={salesPerfActual}
                     projected={salesPerfProjected}
-                    blended={salesPerfBlended}
+                    blended={/*salesPerfBlended*/ salesPerfActual > salesPerfBudget ? salesPerfActual :salesPerfBudget}
                     variance={salesPerfVariance}
                     variancePct={salesPerfVariancePct}
                     type="revenue"
@@ -718,7 +722,7 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
                               <td className="amount-cell budget"><strong>{formatM(salesPerfBudget)}</strong></td>
                               <td className="amount-cell actual"><strong>{formatM(salesPerfActual)}</strong></td>
                               <td className="amount-cell projected"><strong>{/*formatM(salesPerfProjected)*/formatM(salesPerfActual>salesPerfBudget? 0.0 :salesPerfBudget - salesPerfActual)}</strong></td>
-                              <td className="amount-cell blended"><strong>{formatM(salesPerfBlended)}</strong></td>
+                              <td className="amount-cell blended"><strong>{/*formatM(salesPerfBlended)*/salesPerfActual > salesPerfBudget ? formatM(salesPerfActual) : formatM(salesPerfBudget)}</strong></td>
                               <td className={`amount-cell variance ${salesPerfVariance >= 0 ? 'positive' : 'negative'}`}>
                                 <strong>{formatM(salesPerfVariance)}</strong>
                               </td>
@@ -809,46 +813,25 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
                           </tr>
                         ))}
 
-                        {totalSalesBudget > 0 && (
-                          <tr className="sales-expense-row">
-                            <td className="line-item-cell"><strong>Sales Expenses</strong></td>
-                            <td className="team-cell">
-                              <span className="team-tag team-sales">🤝 Sales</span>
-                            </td>
-                            <td className="amount-cell budget"><strong>{formatM(totalSalesBudget)}</strong></td>
-                            <td className="amount-cell actual"><strong>{formatM(totalSalesActual)}</strong></td>
-                            <td className="amount-cell projected"><strong>{formatM(totalSalesProjected)}</strong></td>
-                            <td className="amount-cell blended"><strong>{formatM(totalSalesBlended)}</strong></td>
-                            <td className={`amount-cell variance ${totalSalesVariance >= 0 ? 'positive' : 'negative'}`}>
-                              <strong>{formatM(totalSalesVariance)}</strong>
-                            </td>
-                            <td className="pct-cell">
-                              <VarianceBadge 
-                                value={totalSalesBudget !== 0 ? (totalSalesVariance / totalSalesBudget) * 100 : 0} 
-                                type="cost" 
-                              />
-                            </td>
-                          </tr>
-                        )}
-
-                        {marketingCosts.map((row, idx) => (
-                          <tr key={`mkt-${idx}`} className={(row.variance ?? 0) < 0 ? 'attention' : ''}>
-                            <td className="line-item-cell">{row.lineItem}</td>
-                            <td className="team-cell">
-                              <span className="team-tag team-marketing">📢 Marketing</span>
-                            </td>
-                            <td className="amount-cell budget">{formatM(row.budget)}</td>
-                            <td className="amount-cell actual">{formatM(row.actual)}</td>
-                            <td className="amount-cell projected">{formatM(row.projected)}</td>
-                            <td className="amount-cell blended">{formatM(row.blended)}</td>
-                            <td className={`amount-cell variance ${(row.variance ?? 0) >= 0 ? 'positive' : 'negative'}`}>
-                              {formatM(row.variance ?? 0)}
-                            </td>
-                            <td className="pct-cell">
-                              <VarianceBadge value={row.variancePct ?? 0} type="cost" />
-                            </td>
-                          </tr>
-                        ))}
+                        <tr className="sales-expense-row">
+                          <td className="line-item-cell"><strong>Sales & Marketing</strong></td>
+                          <td className="team-cell">
+                            <span className="team-tag team-sales">🤝 Sales & Marketing</span>
+                          </td>
+                          <td className="amount-cell budget"><strong>{formatM(salesMktBudget)}</strong></td>
+                          <td className="amount-cell actual"><strong>{formatM(salesMktActual)}</strong></td>
+                          <td className="amount-cell projected"><strong>{formatM(salesMktProjected)}</strong></td>
+                          <td className="amount-cell blended"><strong>{formatM(salesMktBlended)}</strong></td>
+                          <td className={`amount-cell variance ${salesMktVariance >= 0 ? 'positive' : 'negative'}`}>
+                            <strong>{formatM(salesMktVariance)}</strong>
+                          </td>
+                          <td className="pct-cell">
+                            <VarianceBadge
+                              value={salesMktBudget !== 0 ? (salesMktVariance / salesMktBudget) * 100 : 0}
+                              type="cost"
+                            />
+                          </td>
+                        </tr>
 
                         <tr className="subtotal-row">
                           <td className="line-item-cell"><strong>Total Operating Costs</strong></td>
