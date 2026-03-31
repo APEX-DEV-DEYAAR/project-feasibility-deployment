@@ -220,8 +220,8 @@ export class CostTrackingService {
       this.projectActualsRepo?.findByProject(projectId) ?? [],
     ]);
 
-    // Build a lookup of project-level actuals (e.g. Land)
-    const actualsMap = new Map(projectActuals.map((a) => [a.lineItem, a.actualAmount]));
+    // Build a lookup of project-level actuals (e.g. Land, COF)
+    const actualsMap = new Map(projectActuals.map((a) => [a.lineItem, a]));
 
     const rows: BudgetVsActualRow[] = [];
 
@@ -304,23 +304,27 @@ export class CostTrackingService {
       teamActivity.collections = revenueAggregate.lastActivity;
     }
 
-    // Inject project-level actuals (e.g. Land) as tracked rows
+    // Inject project-level actuals (e.g. Land, COF) as tracked rows
     // so the frontend can merge them with feasibility budget values
-    for (const [lineItem, actualAmount] of actualsMap) {
+    for (const [lineItem, entry] of actualsMap) {
+      const actual = entry.actualAmount;
+      const projected = entry.projectedAmount;
+      const blended = actual > 0 ? actual : projected;
       const existing = rows.find((r) => r.lineItem === lineItem);
       if (existing) {
-        existing.actual = actualAmount;
-        existing.blended = actualAmount;
+        existing.actual = actual;
+        existing.projected = projected;
+        existing.blended = blended;
       } else {
         rows.push({
           lineItem,
           type: "cost",
           team: "revenue",
           budget: 0,
-          actual: actualAmount,
-          projected: 0,
-          blended: actualAmount,
-          variance: -actualAmount,
+          actual,
+          projected,
+          blended,
+          variance: -blended,
           variancePct: 0,
         });
       }

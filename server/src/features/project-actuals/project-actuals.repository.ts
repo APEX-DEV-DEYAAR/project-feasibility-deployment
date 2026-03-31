@@ -5,6 +5,7 @@ export interface ProjectActual {
   projectId: number;
   lineItem: string;
   actualAmount: number;
+  projectedAmount: number;
   notes: string | null;
   updatedAt: string;
 }
@@ -21,6 +22,7 @@ export class ProjectActualsRepository {
           project_id    NUMBER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
           line_item     VARCHAR2(255 CHAR) NOT NULL,
           actual_amount NUMBER DEFAULT 0 NOT NULL,
+          projected_amount NUMBER DEFAULT 0 NOT NULL,
           notes         CLOB,
           updated_at    TIMESTAMP WITH TIME ZONE DEFAULT SYSTIMESTAMP NOT NULL,
           CONSTRAINT uq_project_actuals UNIQUE (project_id, line_item)
@@ -30,6 +32,7 @@ export class ProjectActualsRepository {
           project_id    BIGINT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
           line_item     TEXT NOT NULL,
           actual_amount NUMERIC NOT NULL DEFAULT 0,
+          projected_amount NUMERIC NOT NULL DEFAULT 0,
           notes         TEXT,
           updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           UNIQUE (project_id, line_item)
@@ -43,16 +46,33 @@ export class ProjectActualsRepository {
       if (oraErr.errorNum === 955) return;
       throw err;
     }
+
+    // Add projected_amount column if table already exists without it
+    const addColSql = isOracle
+      ? `ALTER TABLE project_actuals ADD projected_amount NUMBER DEFAULT 0 NOT NULL`
+      : `ALTER TABLE project_actuals ADD COLUMN IF NOT EXISTS projected_amount NUMERIC NOT NULL DEFAULT 0`;
+
+    try {
+      await this.db.query(addColSql);
+    } catch (err: unknown) {
+      // ORA-01430: column being added already exists — ignore
+      const oraErr = err as { errorNum?: number };
+      if (oraErr.errorNum === 1430) return;
+      // PostgreSQL IF NOT EXISTS handles it, but catch just in case
+      const pgErr = err as { code?: string };
+      if (pgErr.code === "42701") return; // duplicate_column
+      throw err;
+    }
   }
 
-  async upsert(projectId: number, lineItem: string, actualAmount: number, notes?: string): Promise<ProjectActual> {
+  async upsert(projectId: number, lineItem: string, actualAmount: number, projectedAmount: number, notes?: string): Promise<ProjectActual> {
     const result = await this.db.upsertReturning<ProjectActual>({
       table: "project_actuals",
       conflictCols: ["project_id", "line_item"],
-      insertCols: ["project_id", "line_item", "actual_amount", "notes"],
-      updateCols: ["actual_amount", "notes"],
-      values: [projectId, lineItem, actualAmount, notes ?? null],
-      selectExpr: 'id, project_id AS "projectId", line_item AS "lineItem", actual_amount AS "actualAmount", notes, updated_at AS "updatedAt"',
+      insertCols: ["project_id", "line_item", "actual_amount", "projected_amount", "notes"],
+      updateCols: ["actual_amount", "projected_amount", "notes"],
+      values: [projectId, lineItem, actualAmount, projectedAmount, notes ?? null],
+      selectExpr: 'id, project_id AS "projectId", line_item AS "lineItem", actual_amount AS "actualAmount", projected_amount AS "projectedAmount", notes, updated_at AS "updatedAt"',
       extraSetClauses: [`updated_at = ${this.db.nowExpression()}`],
     });
     return result.rows[0];
@@ -61,7 +81,8 @@ export class ProjectActualsRepository {
   async findByProject(projectId: number): Promise<ProjectActual[]> {
     const { rows } = await this.db.query<ProjectActual>(
       `SELECT id, project_id AS "projectId", line_item AS "lineItem",
-              actual_amount AS "actualAmount", notes, updated_at AS "updatedAt"
+              actual_amount AS "actualAmount", projected_amount AS "projectedAmount",
+              notes, updated_at AS "updatedAt"
        FROM project_actuals
        WHERE project_id = ${this.db.placeholder(1)}
        ORDER BY line_item`,
@@ -73,7 +94,8 @@ export class ProjectActualsRepository {
   async findByProjectAndLineItem(projectId: number, lineItem: string): Promise<ProjectActual | null> {
     const { rows } = await this.db.query<ProjectActual>(
       `SELECT id, project_id AS "projectId", line_item AS "lineItem",
-              actual_amount AS "actualAmount", notes, updated_at AS "updatedAt"
+              actual_amount AS "actualAmount", projected_amount AS "projectedAmount",
+              notes, updated_at AS "updatedAt"
        FROM project_actuals
        WHERE project_id = ${this.db.placeholder(1)} AND line_item = ${this.db.placeholder(2)}`,
       [projectId, lineItem]

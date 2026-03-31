@@ -21,11 +21,12 @@ export class ProjectActualsController {
       const projectId = parseInt(req.params.projectId, 10);
       if (isNaN(projectId)) throw new ValidationError("Invalid project ID");
 
-      const { lineItem, actualAmount, notes } = req.body;
+      const { lineItem, actualAmount, projectedAmount, notes } = req.body;
       if (!lineItem || typeof lineItem !== "string") throw new ValidationError("lineItem is required");
       if (actualAmount == null || typeof actualAmount !== "number") throw new ValidationError("actualAmount is required");
 
-      const result = await this.repo.upsert(projectId, lineItem, actualAmount, notes);
+      const projected = typeof projectedAmount === "number" ? projectedAmount : 0;
+      const result = await this.repo.upsert(projectId, lineItem, actualAmount, projected, notes);
       res.json(result);
     } catch (error) {
       next(error);
