@@ -309,7 +309,7 @@ export class CostTrackingService {
     for (const [lineItem, entry] of actualsMap) {
       const actual = entry.actualAmount;
       const projected = entry.projectedAmount;
-      const blended = actual > 0 ? actual : projected;
+      const blended = actual + projected;
       const existing = rows.find((r) => r.lineItem === lineItem);
       if (existing) {
         existing.actual = actual;
