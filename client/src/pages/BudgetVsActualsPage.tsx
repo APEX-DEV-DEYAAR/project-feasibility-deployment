@@ -851,6 +851,24 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
                           </td>
                         </tr>
 
+                        <tr className="net-position-row gross">
+                          <td className="line-item-cell"><strong>Gross Profit</strong></td>
+                          <td className="team-cell"></td>
+                          <td className="amount-cell"><strong>{formatM(grossProfitBudget)}</strong></td>
+                          <td className="amount-cell"><strong>{formatM(grossProfitActual)}</strong></td>
+                          <td className="amount-cell"><strong>{formatM(grossProfitProjected)}</strong></td>
+                          <td className="amount-cell"><strong>{formatM(grossProfitBlended)}</strong></td>
+                          <td className={`amount-cell variance ${grossProfitVariance >= 0 ? 'positive' : 'negative'}`}>
+                            <strong>{formatM(grossProfitVariance)}</strong>
+                          </td>
+                          <td className="pct-cell">
+                            <VarianceBadge
+                              value={grossProfitBudget !== 0 ? (grossProfitVariance / grossProfitBudget) * 100 : 0}
+                              type="revenue"
+                            />
+                          </td>
+                        </tr>
+
                         {/* COF Section */}
                         {cofRows.length > 0 && (
                           <>
@@ -901,24 +919,6 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
                         <tr className="section-header profit">
                           <td colSpan={8}>
                             <span className="section-icon">📈</span> Profitability
-                          </td>
-                        </tr>
-
-                        <tr className="net-position-row gross">
-                          <td className="line-item-cell"><strong>Gross Profit</strong></td>
-                          <td className="team-cell"></td>
-                          <td className="amount-cell"><strong>{formatM(grossProfitBudget)}</strong></td>
-                          <td className="amount-cell"><strong>{formatM(grossProfitActual)}</strong></td>
-                          <td className="amount-cell"><strong>{formatM(grossProfitProjected)}</strong></td>
-                          <td className="amount-cell"><strong>{formatM(grossProfitBlended)}</strong></td>
-                          <td className={`amount-cell variance ${grossProfitVariance >= 0 ? 'positive' : 'negative'}`}>
-                            <strong>{formatM(grossProfitVariance)}</strong>
-                          </td>
-                          <td className="pct-cell">
-                            <VarianceBadge 
-                              value={grossProfitBudget !== 0 ? (grossProfitVariance / grossProfitBudget) * 100 : 0} 
-                              type="revenue" 
-                            />
                           </td>
                         </tr>
 
