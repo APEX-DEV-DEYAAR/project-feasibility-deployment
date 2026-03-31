@@ -104,7 +104,7 @@ function KPICard({
   type: "revenue" | "cost" | "profit";
   icon: string;
 }) {
-  const isPositive = type === "revenue" ? variance >= 0 : variance <= 0;
+  const isPositive = variance >= 0;
   const isProfit = type === "profit";
   
   return (
@@ -139,7 +139,7 @@ function KPICard({
 
 // Variance Badge Component
 function VarianceBadge({ value, type = "cost" }: { value: number; type?: "revenue" | "cost" }) {
-  const isFavorable = type === "revenue" ? value >= 0 : value <= 0;
+  const isFavorable = value >= 0;
   const isNeutral = value === 0;
   
   if (isNeutral) {
