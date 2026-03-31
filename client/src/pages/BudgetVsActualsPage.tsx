@@ -758,11 +758,11 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
                               <td className="amount-cell actual"><strong>{formatM(totalRevActual)}</strong></td>
                               <td className="amount-cell projected"><strong>{formatM(totalRevProjected)}</strong></td>
                               <td className="amount-cell blended"><strong>{formatM(totalRevBlended)}</strong></td>
-                              <td className={`amount-cell variance ${totalRevVariance >= 0 ? 'positive' : 'negative'}`}>
-                                <strong>{formatM(totalRevVariance)}</strong>
+                              <td className={`amount-cell variance ${(totalRevBlended - (hasSalesPerf ? salesPerfBlended : totalRevBudget)) >= 0 ? 'positive' : 'negative'}`}>
+                                <strong>{formatM(totalRevBlended - (hasSalesPerf ? salesPerfBlended : totalRevBudget))}</strong>
                               </td>
                               <td className="pct-cell">
-                                <VarianceBadge value={revVariancePct} type="revenue" />
+                                <VarianceBadge value={(hasSalesPerf ? salesPerfBlended : totalRevBudget) !== 0 ? ((totalRevBlended - (hasSalesPerf ? salesPerfBlended : totalRevBudget)) / (hasSalesPerf ? salesPerfBlended : totalRevBudget)) * 100 : 0} type="revenue" />
                               </td>
                             </tr>
                           </>
