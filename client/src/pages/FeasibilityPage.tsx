@@ -226,8 +226,6 @@ export default function FeasibilityPage({
           </div>
         </div>
         <div className="topbar-actions">
-          <span className="topbar-tag">Feasibility</span>
-
           {isArchiveView ? (
             <>
               <PrintButton projectName={model.projectName} />
@@ -256,10 +254,6 @@ export default function FeasibilityPage({
               )}
 
               <PrintButton projectName={model.projectName} />
-
-              <button className="btn btn-ghost btn-icon" onClick={onBack} disabled={loading} title="Back">
-                ←
-              </button>
 
               {!readOnly && currentModel.status === "frozen" ? (
                 <button className="btn btn-terra" onClick={onEditFrozen} disabled={loading}>

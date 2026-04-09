@@ -494,29 +494,16 @@ export default function BudgetVsActualsPage({ projects, onBack, onLogout, onRefr
 
   return (
     <div className="app">
-      <header className="topbar">
+      <header className="topbar bva-topbar">
         <div className="topbar-brand">
           <div className="topbar-logo"><DeyaarLogo size="sm" variant="beige" /></div>
           <div className="topbar-divider" />
           <div className="topbar-title">Budget vs Actuals</div>
         </div>
         <div className="topbar-actions">
-          {onLogout || onRefresh ? (
-            <>
-              {onRefresh && (
-                <button className="btn btn-ghost btn-icon" onClick={onRefresh} title="Refresh">
-                  <span style={{ fontSize: "16px" }}>&#x21bb;</span>
-                </button>
-              )}
-              {onLogout && (
-                <button className="btn btn-ghost" onClick={onLogout} title="Sign out" style={{ color: "#f87171" }}>
-                  Sign Out
-                </button>
-              )}
-            </>
-          ) : (
-            <button className="btn btn-ghost btn-back" onClick={onBack}><span className="back-arrow">←</span><span className="back-text"> Back to Portfolio</span></button>
-          )}
+          <button className="btn btn-ghost btn-icon" onClick={onRefresh || onBack} title="Refresh">
+            <span style={{ fontSize: "16px" }}>&#x21bb;</span>
+          </button>
         </div>
       </header>
 

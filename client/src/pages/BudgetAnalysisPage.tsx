@@ -118,25 +118,9 @@ export default function BudgetAnalysisPage({ projects, onBack, onLogout, onRefre
           <div className="topbar-title">Budget Analysis</div>
         </div>
         <div className="topbar-actions">
-          {onLogout || onRefresh ? (
-            <>
-              {onRefresh && (
-                <button className="btn btn-ghost btn-icon" onClick={onRefresh} title="Refresh">
-                  <span style={{ fontSize: "16px" }}>&#x21bb;</span>
-                </button>
-              )}
-              {onLogout && (
-                <button className="btn btn-ghost" onClick={onLogout} title="Sign out" style={{ color: "#f87171" }}>
-                  Sign Out
-                </button>
-              )}
-            </>
-          ) : (
-            <button className="btn btn-ghost btn-back" onClick={onBack}>
-              <span className="back-arrow">&larr;</span>
-              <span className="back-text"> Back to Portfolio</span>
-            </button>
-          )}
+          <button className="btn btn-ghost btn-icon" onClick={onRefresh || onBack} title="Refresh">
+            <span style={{ fontSize: "16px" }}>&#x21bb;</span>
+          </button>
         </div>
       </header>
 

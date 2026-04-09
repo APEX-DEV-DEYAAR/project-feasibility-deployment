@@ -46,9 +46,8 @@ export default function PortfolioPage({ onBack, onOpenProject }: PortfolioPagePr
           <div className="topbar-title">Deyaar Feasibility Portfolio</div>
         </div>
         <div className="topbar-actions">
-          <span className="topbar-tag">Feasibility Portfolio</span>
-          <button className="btn btn-ghost btn-icon" onClick={onBack} title="Back">
-            &larr;
+          <button className="btn btn-ghost btn-icon" onClick={onBack} title="Refresh">
+            <span style={{ fontSize: "16px" }}>&#x21bb;</span>
           </button>
         </div>
       </header>

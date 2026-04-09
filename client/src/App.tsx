@@ -51,7 +51,7 @@ interface ToastItem {
 // ---- Role-based screen access ----
 // admin sees everything, other roles see specific screens
 const ROLE_SCREENS: Record<UserRole, Set<string>> = {
-  admin: new Set(["projects", "feasibility", "portfolio", "commercial", "salesTracking", "sales", "marketing", "collections", "budget"/*, "budgetAnalysis"*/]),
+  admin: new Set(["projects", "feasibility", "portfolio", "commercial", "salesTracking", "sales", "marketing", "collections", "collectionsForecast", "budget"/*, "budgetAnalysis"*/]),
   commercial: new Set([ "commercial"]),
   sales: new Set(["sales", "salesTracking"]),
   collections: new Set(["collections"]),
@@ -70,14 +70,69 @@ function canAccess(roles: UserRole[], screen: string): boolean {
 }
 
 const SCREEN_LABELS: Record<string, string> = {
+  projects: "Portfolio",
+  feasibility: "Feasibility",
+  portfolio: "Portfolio Overview",
   commercial: "Commercial",
   sales: "Sales",
   salesTracking: "Sales Tracking",
   marketing: "Marketing",
   collections: "Collections",
+  collectionsForecast: "Collections Forecast",
   budget: "Budget vs Actuals",
   budgetAnalysis: "Budget Analysis",
 };
+
+function SidebarIcon({ name }: { name: string }) {
+  const icons: Record<string, JSX.Element> = {
+    projects: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
+      </svg>
+    ),
+    commercial: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 21h18" /><path d="M5 21V7l8-4v18" /><path d="M19 21V11l-6-4" /><path d="M9 9v.01" /><path d="M9 12v.01" /><path d="M9 15v.01" /><path d="M9 18v.01" />
+      </svg>
+    ),
+    sales: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+      </svg>
+    ),
+    salesTracking: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+      </svg>
+    ),
+    marketing: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+      </svg>
+    ),
+    collections: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="1" y="4" width="22" height="16" rx="2" ry="2" /><line x1="1" y1="10" x2="23" y2="10" />
+      </svg>
+    ),
+    collectionsForecast: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+      </svg>
+    ),
+    budget: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" />
+      </svg>
+    ),
+    budgetAnalysis: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="8" y1="11" x2="14" y2="11" /><line x1="11" y1="8" x2="11" y2="14" />
+      </svg>
+    ),
+  };
+  return icons[name] || null;
+}
 
 // ---- Restore session from localStorage ----
 function loadSession(): AuthUser | null {
@@ -150,8 +205,16 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
   const [loading, setLoading] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [activeSection, setActiveSection] = useState("Project");
+  const [pendingAddUser, setPendingAddUser] = useState(false);
 
   const mobile = useMobile();
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // Build the list of sidebar nav items the user can access
+  const sidebarItems = useMemo(() => {
+    const order: (typeof screen)[] = ["projects", "commercial", "sales", "salesTracking", "marketing", "collections", "collectionsForecast", "budget"];
+    return order.filter((s) => canAccess(user.roles, s));
+  }, [user.roles]);
 
   function getNavButtons(currentScreen: string) {
     if (canAccess(user.roles, "projects")) return undefined; // user has "Back to Portfolio"
@@ -425,7 +488,24 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
     await loadProjects();
   };
 
-  return (
+  const showSidebar = sidebarItems.length > 1;
+
+  const sidebarNav = (
+    <nav className="sidebar-nav">
+      {sidebarItems.map((s) => (
+        <button
+          key={s}
+          className={`sidebar-nav-item ${screen === s ? "active" : ""}`}
+          onClick={() => { setScreen(s); setMobileSidebarOpen(false); }}
+        >
+          <span className="sidebar-nav-icon"><SidebarIcon name={s} /></span>
+          <span className="sidebar-nav-label">{SCREEN_LABELS[s] || s}</span>
+        </button>
+      ))}
+    </nav>
+  );
+
+  const pageContent = (
     <>
       {screen === "projects" ? (
         <ProjectsPage
@@ -439,17 +519,11 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
           onOpenNewProject={openNewProject}
           onDeleteProject={handleDeleteProject}
           onNewProjectNameChange={setNewProjectName}
-          onNavigateToCommercial={canAccess(user.roles, "commercial") ? () => setScreen("commercial") : undefined}
-          onNavigateToSales={canAccess(user.roles, "sales") ? () => setScreen("sales") : undefined}
-          onNavigateToMarketing={canAccess(user.roles, "marketing") ? () => setScreen("marketing") : undefined}
-          onNavigateToCollections={canAccess(user.roles, "collections") ? () => setScreen("collections") : undefined}
-          onNavigateToCollectionsForecast={canAccess(user.roles, "collectionsForecast") ? () => setScreen("collectionsForecast") : undefined}
-          onNavigateToSalesTracking={canAccess(user.roles, "salesTracking") ? () => setScreen("salesTracking") : undefined}
-          onNavigateToBudget={canAccess(user.roles, "budget") ? () => setScreen("budget") : undefined}
-          onNavigateToBudgetAnalysis={canAccess(user.roles, "budgetAnalysis") ? () => setScreen("budgetAnalysis") : undefined}
           userRoles={user.roles}
           userName={user.username}
           onLogout={onLogout}
+          openAddUser={pendingAddUser}
+          onAddUserOpened={() => setPendingAddUser(false)}
         />
       ) : (
         <Suspense fallback={<div className="loading-state">Loading screen...</div>}>
@@ -464,7 +538,6 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
               onBack={backToProjects}
               onLogout={!canAccess(user.roles, "projects") ? onLogout : undefined}
               onRefresh={!canAccess(user.roles, "projects") ? loadProjects : undefined}
-              extraNavButtons={getNavButtons("commercial")}
             />
           ) : screen === "sales" ? (
             <SalesTeamPage
@@ -472,7 +545,6 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
               onBack={backToProjects}
               onLogout={!canAccess(user.roles, "projects") ? onLogout : undefined}
               onRefresh={!canAccess(user.roles, "projects") ? loadProjects : undefined}
-              extraNavButtons={getNavButtons("sales")}
             />
           ) : screen === "marketing" ? (
             <MarketingTeamPage
@@ -480,7 +552,6 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
               onBack={backToProjects}
               onLogout={!canAccess(user.roles, "projects") ? onLogout : undefined}
               onRefresh={!canAccess(user.roles, "projects") ? loadProjects : undefined}
-              extraNavButtons={getNavButtons("marketing")}
             />
           ) : screen === "collections" ? (
             <CollectionsTeamPage
@@ -488,7 +559,6 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
               onBack={backToProjects}
               onLogout={!canAccess(user.roles, "projects") ? onLogout : undefined}
               onRefresh={!canAccess(user.roles, "projects") ? loadProjects : undefined}
-              extraNavButtons={getNavButtons("collections")}
             />
           ) : screen === "collectionsForecast" ? (
             <CollectionsForecastPage
@@ -554,6 +624,93 @@ function AuthenticatedApp({ user, onLogout }: { user: AuthUser; onLogout: () => 
           )}
         </Suspense>
       )}
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar - fixed, starts below the topbar */}
+      {showSidebar && !mobile.isMobile && (
+        <aside className="global-sidebar">
+          <div className="sidebar-section-label">Navigation</div>
+          {sidebarNav}
+          <div className="sidebar-spacer" />
+          <div className="sidebar-divider" />
+          <div className="sidebar-footer">
+            {user.roles.includes("admin") && (
+              <button className="sidebar-nav-item" onClick={() => { setScreen("projects"); setPendingAddUser(true); }}>
+                <span className="sidebar-nav-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" />
+                  </svg>
+                </span>
+                <span className="sidebar-nav-label">Add User</span>
+              </button>
+            )}
+            {user.username && (
+              <span className="sidebar-user">{user.username}</span>
+            )}
+            <button className="sidebar-nav-item sidebar-signout" onClick={onLogout}>
+              <span className="sidebar-nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </span>
+              <span className="sidebar-nav-label">Sign Out</span>
+            </button>
+          </div>
+        </aside>
+      )}
+
+      {/* Mobile sidebar overlay */}
+      {showSidebar && mobile.isMobile && mobileSidebarOpen && (
+        <div className="global-sidebar-overlay" onClick={() => setMobileSidebarOpen(false)}>
+          <aside className="global-sidebar-mobile" onClick={(e) => e.stopPropagation()}>
+            {user.username && (
+              <div className="sidebar-user" style={{ padding: "16px 14px 4px" }}>{user.username}</div>
+            )}
+            <div className="sidebar-divider" />
+            {sidebarNav}
+            <div className="sidebar-spacer" />
+            <div className="sidebar-divider" />
+            {user.roles.includes("admin") && (
+              <button className="sidebar-nav-item" onClick={() => { setScreen("projects"); setPendingAddUser(true); setMobileSidebarOpen(false); }}>
+                <span className="sidebar-nav-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" />
+                  </svg>
+                </span>
+                <span className="sidebar-nav-label">Add User</span>
+              </button>
+            )}
+            <button className="sidebar-nav-item sidebar-signout" onClick={onLogout}>
+              <span className="sidebar-nav-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </span>
+              <span className="sidebar-nav-label">Sign Out</span>
+            </button>
+          </aside>
+        </div>
+      )}
+
+      <div className={`app-content ${showSidebar && !mobile.isMobile ? 'has-global-sidebar' : ''}`}>
+        {/* Mobile hamburger bar */}
+        {showSidebar && mobile.isMobile && (
+          <header className="topbar">
+            <div className="topbar-brand">
+              <button className="btn btn-ghost btn-icon mobile-hamburger" onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)} title="Menu">
+                {mobileSidebarOpen ? "\u2715" : "\u2630"}
+              </button>
+              <div className="topbar-divider" />
+              <div className="topbar-title">{SCREEN_LABELS[screen] || "Deyaar"}</div>
+            </div>
+          </header>
+        )}
+
+        {pageContent}
+      </div>
 
       <div className={`loading-overlay ${loading ? "active" : ""}`}>
         <div className="spinner" />

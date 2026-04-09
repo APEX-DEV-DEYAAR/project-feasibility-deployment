@@ -646,27 +646,9 @@ export default function TeamCostPage({ teamCode, teamName, projects, showCollect
           <div className="topbar-title">{teamName}</div>
         </div>
         <div className="topbar-actions">
-          {onLogout || onRefresh ? (
-            <>
-              {extraNavButtons?.map((btn) => (
-                <button key={btn.label} className="btn btn-ghost" onClick={btn.onClick}>
-                  {btn.label}
-                </button>
-              ))}
-              {onRefresh && (
-                <button className="btn btn-ghost btn-icon" onClick={onRefresh} disabled={loading} title="Refresh">
-                  <span style={{ fontSize: "16px" }}>&#x21bb;</span>
-                </button>
-              )}
-              {onLogout && (
-                <button className="btn btn-ghost" onClick={onLogout} title="Sign out" style={{ color: "#f87171" }}>
-                  Sign Out
-                </button>
-              )}
-            </>
-          ) : (
-            <button className="btn btn-ghost btn-back" onClick={onBack}><span className="back-arrow">&larr;</span><span className="back-text"> Back to Portfolio</span></button>
-          )}
+          <button className="btn btn-ghost btn-icon" onClick={onRefresh || onBack} disabled={loading} title="Refresh">
+            <span style={{ fontSize: "16px" }}>&#x21bb;</span>
+          </button>
         </div>
       </header>
 

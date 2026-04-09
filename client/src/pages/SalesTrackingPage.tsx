@@ -322,30 +322,9 @@ export default function SalesTrackingPage({ projects, onBack, onLogout, onRefres
           <div className="topbar-title">Sales Performance Tracking</div>
         </div>
         <div className="topbar-actions">
-          {onNavigateToSales && (
-            <button className="btn btn-ghost" onClick={onNavigateToSales} title="Sales Team Cost Tracking">
-              Sales Team
-            </button>
-          )}
-          {onLogout || onRefresh ? (
-            <>
-              {onRefresh && (
-                <button className="btn btn-ghost btn-icon" onClick={onRefresh} disabled={loading} title="Refresh">
-                  <span style={{ fontSize: "16px" }}>&#x21bb;</span>
-                </button>
-              )}
-              {onLogout && (
-                <button className="btn btn-ghost" onClick={onLogout} title="Sign out" style={{ color: "#f87171" }}>
-                  Sign Out
-                </button>
-              )}
-            </>
-          ) : (
-            <button className="btn btn-ghost btn-back" onClick={onBack}>
-              <span className="back-arrow">&larr;</span>
-              <span className="back-text"> Back to Portfolio</span>
-            </button>
-          )}
+          <button className="btn btn-ghost btn-icon" onClick={onRefresh || onBack} disabled={loading} title="Refresh">
+            <span style={{ fontSize: "16px" }}>&#x21bb;</span>
+          </button>
         </div>
       </header>
 
